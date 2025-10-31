@@ -1,12 +1,22 @@
 {% extends 'planner/base.html' %}
 {% block content %}
 <h2 class="text-center mb-4">AI Study Plan</h2>
+
 <div class="card shadow-sm">
   <div class="card-body">
     <h4>{{ subject.name }}</h4>
     <p><strong>Exam Date:</strong> {{ subject.exam_date }}</p>
     <hr>
-    <p>{{ studyplan.plan_text }}</p>
+
+    {% if studyplans %}
+      <ul>
+        {% for plan in studyplans %}
+          <li>{{ plan.plan_text }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No study plans available for this subject.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
