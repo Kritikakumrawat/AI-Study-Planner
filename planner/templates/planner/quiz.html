@@ -1,0 +1,17 @@
+{% extends 'planner/base.html' %}
+
+{% block content %}
+    <div class="card">
+        <h2>Practice Quizzes & Flashcards ❓</h2>
+        <p>Test your knowledge! AI generates quizzes and flashcards tailored to the topics you've just studied.</p>
+        <p>Your performance here will **adaptively reschedule** more time for weak subjects in your timetable.</p>
+        <h3>Sample Question:</h3>
+        <form>
+            <p>What layer does the IP protocol primarily operate at?</p>
+            <label><input type="radio" name="q1" value="a"> Application Layer</label><br>
+            <label><input type="radio" name="q1" value="b"> Transport Layer</label><br>
+            <label><input type="radio" name="q1" value="c"> Network Layer</label><br>
+            <button type="submit" class="btn-primary">Submit Answer</button>
+        </form>
+    </div>
+{% endblock content %}

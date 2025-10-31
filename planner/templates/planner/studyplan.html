@@ -1,0 +1,12 @@
+{% extends 'planner/base.html' %}
+{% block content %}
+<h2 class="text-center mb-4">AI Study Plan</h2>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h4>{{ subject.name }}</h4>
+    <p><strong>Exam Date:</strong> {{ subject.exam_date }}</p>
+    <hr>
+    <p>{{ studyplan.plan_text }}</p>
+  </div>
+</div>
+{% endblock %}
