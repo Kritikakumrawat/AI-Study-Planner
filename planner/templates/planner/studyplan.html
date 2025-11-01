@@ -19,4 +19,26 @@
     {% endif %}
   </div>
 </div>
+
+<hr class="my-4">
+
+<div class="card shadow-sm mt-4">
+  <div class="card-body">
+    <h4>AI Notes</h4>
+
+    {% if notes %}
+      <ul>
+        {% for note in notes %}
+          <li>{{ note.content }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No notes available for this subject yet.</p>
+    {% endif %}
+
+    <form action="{% url 'generate_notes' subject.id %}" method="get" class="mt-3">
+      <button type="submit" class="btn btn-primary">✨ Generate Notes</button>
+    </form>
+  </div>
+</div>
 {% endblock %}
