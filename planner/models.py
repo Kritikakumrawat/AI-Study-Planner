@@ -49,3 +49,11 @@ class Quiz(models.Model):
     def __str__(self):
         return f"Quiz: {self.question[:50]}..."
 
+class Chat(models.Model):
+    user_message = models.TextField()
+    ai_response = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Chat: {self.user_message[:50]}..."
+
