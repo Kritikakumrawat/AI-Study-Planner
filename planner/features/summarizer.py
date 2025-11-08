@@ -4,7 +4,7 @@ from typing import List
 def summarize_text(text: str, max_sentences: int = 5) -> str:
     """
     Lightweight summarizer: returns first N sentences as a summary.
-    Replace this with LLM call later (ai_helper.wrap_summary).
+    This is the local fallback implementation.
     """
     if not text:
         return ""

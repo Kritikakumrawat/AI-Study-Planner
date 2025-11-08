@@ -2,16 +2,26 @@
 
 {% block content %}
     <div class="card">
-        <h2>Practice Quizzes & Flashcards ❓</h2>
+        <h2>Practice Quizzes & Flashcards ❓ for {{ subject.name }}</h2>
         <p>Test your knowledge! AI generates quizzes and flashcards tailored to the topics you've just studied.</p>
         <p>Your performance here will **adaptively reschedule** more time for weak subjects in your timetable.</p>
-        <h3>Sample Question:</h3>
-        <form>
-            <p>What layer does the IP protocol primarily operate at?</p>
-            <label><input type="radio" name="q1" value="a"> Application Layer</label><br>
-            <label><input type="radio" name="q1" value="b"> Transport Layer</label><br>
-            <label><input type="radio" name="q1" value="c"> Network Layer</label><br>
-            <button type="submit" class="btn-primary">Submit Answer</button>
-        </form>
+
+        {% if quizzes %}
+            {% for quiz in quizzes %}
+                <h3>Question {{ forloop.counter }}:</h3>
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <p>{{ quiz.question }}</p>
+                    <label><input type="radio" name="answer_{{ quiz.id }}" value="a"> {{ quiz.option_a }}</label><br>
+                    <label><input type="radio" name="answer_{{ quiz.id }}" value="b"> {{ quiz.option_b }}</label><br>
+                    <label><input type="radio" name="answer_{{ quiz.id }}" value="c"> {{ quiz.option_c }}</label><br>
+                    <label><input type="radio" name="answer_{{ quiz.id }}" value="d"> {{ quiz.option_d }}</label><br>
+                    <button type="submit" class="btn-primary">Submit Answer</button>
+                </form>
+                <hr>
+            {% endfor %}
+        {% else %}
+            <p>No quizzes available. Click "Generate Quiz" to create some.</p>
+        {% endif %}
     </div>
 {% endblock content %}
