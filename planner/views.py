@@ -1,11 +1,15 @@
+import logging
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.contrib import messages
 from .models import Subject, StudyPlan, Notes, Quiz
 from .features.summarizer import summarize_text
 from .features.ai_helper import generate_quiz_questions
 from .features.study_planner import generate_study_plan
 from .features.pdf_reader import extract_text_from_pdf
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 # Home page
 def home(request):
@@ -27,18 +31,62 @@ def study_plan_list(request, subject_id):
         'notes': notes,
     })
 
+# Display Notes for a subject
+def notes(request, subject_id):
+    subject = get_object_or_404(Subject, id=subject_id)
+    notes = Notes.objects.filter(subject=subject).order_by('-created_at')
+    exam = subject.exams.first()  # Assuming one exam per subject
+    exam_date = exam.exam_date if exam else None
+    return render(request, 'planner/notes.html', {'subject': subject, 'notes': notes, 'exam_date': exam_date})
+
 # Generate AI Notes
 def generate_notes(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
+
+    # Check if syllabus file exists
+    if not subject.syllabus_file:
+        error_message = "No syllabus available for generating notes."
+        logger.error(f"No syllabus file for subject {subject.name} (ID: {subject_id})")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': error_message})
+        else:
+            messages.error(request, error_message)
+            return redirect('notes', subject_id=subject_id)
+
     text = ""
-    if subject.syllabus_file:
+    try:
         text = extract_text_from_pdf(subject.syllabus_file.path)
+    except Exception as e:
+        logger.error(f"Failed to extract text from PDF for subject {subject.name} (ID: {subject_id}): {str(e)}")
+        text = ""  # Treat as no text
+
     if not text:
         text = f"Sample content for {subject.name}. This is placeholder text for AI summarization."
-    generated_text = summarize_text(text)
-    Notes.objects.create(subject=subject, content=generated_text, ai_generated=True)
-    notes = Notes.objects.filter(subject=subject)
-    return render(request, 'planner/notes.html', {'subject': subject, 'notes': notes})
+
+    try:
+        generated_text = summarize_text(text)
+    except Exception as e:
+        error_message = "AI failed to generate notes. Try again."
+        logger.error(f"AI summarization failed for subject {subject.name} (ID: {subject_id}): {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': error_message})
+        else:
+            messages.error(request, error_message)
+            return redirect('notes', subject_id=subject_id)
+
+    note = Notes.objects.create(subject=subject, content=generated_text, ai_generated=True)
+
+    # Check if it's an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'note': {
+                'content': note.content,
+                'created_at': note.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        })
+    else:
+        return redirect('notes', subject_id=subject_id)
 
 # Generate Quiz for a subject
 def generate_quiz(request, subject_id):
@@ -82,3 +130,12 @@ def generate_study_plan_view(request, subject_id):
         'studyplans': studyplans,
         'notes': Notes.objects.filter(subject=subject).order_by('-created_at'),
     })
+
+# Download Notes
+def download_note(request, note_id):
+    note = get_object_or_404(Notes, id=note_id)
+    subject_name = note.subject.name.replace(' ', '_').lower()
+    filename = f"{subject_name}_notes.txt"
+    response = HttpResponse(note.content, content_type='text/plain')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response

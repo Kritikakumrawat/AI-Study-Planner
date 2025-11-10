@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-tarb-!omwb+=mn!^e%-akb^pxm-o3i(c97+1we50zyh6#@yn#^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['testserver', '127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -64,6 +64,9 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+            'libraries': {
+                'custom_filters': 'planner.templatetags.custom_filters',
+            },
         },
     },
 ]

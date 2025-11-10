@@ -1,9 +1,13 @@
-# TODO: Fix Circular Imports and Test AI Features
+# TODO: Implement Download Functionality for Notes
 
-## Steps to Complete
+## Steps to Complete:
+- [x] Add download_note view in planner/views.py to handle file download
+- [x] Add URL pattern for download_note in planner/urls.py
+- [x] Add download button next to each note in planner/templates/planner/notes.html
 
-- [x] Edit planner/features/summarizer.py: Add local summarize_text function (simple sentence extraction) and remove circular imports.
-- [x] Edit planner/features/quiz_generator.py: Add local generate_quiz_from_text function (basic algorithmic quiz generation) and remove circular imports.
-- [x] Edit planner/features/study_planner.py: Add local generate_study_plan function (basic algorithmic plan) and remove circular imports.
-- [x] Test server startup (already running on localhost:8000).
-- [x] Use browser to navigate to app, create a subject, and test AI integrations (generate notes, quizzes, study plans) to verify fallbacks work without OpenAI API key. (Manual testing instructions provided due to disabled browser tool.)
+## Requirements:
+- Download button next to each notes entry
+- Download as .txt file
+- Filename: subjectname_notes.txt
+- Backend function returns file response
+- No external libraries

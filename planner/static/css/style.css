@@ -16,3 +16,11 @@ body {
   background: linear-gradient(90deg, #007bff, #00bfff);
   border: none;
 }
+
+#loading-message {
+  display: none;
+  text-align: center;
+  font-weight: bold;
+  color: #007bff;
+  margin-top: 10px;
+}
