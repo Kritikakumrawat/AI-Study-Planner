@@ -7,7 +7,7 @@ from .features.summarizer import summarize_text
 from .features.ai_helper import generate_quiz_questions
 from .features.study_planner import generate_study_plan
 from .features.pdf_reader import extract_text_from_pdf
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
