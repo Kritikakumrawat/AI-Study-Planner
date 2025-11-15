@@ -1,13 +1,18 @@
-# TODO: Implement Download Functionality for Notes
+# TODO: Add Login/Sign-in Page for Users
 
-## Steps to Complete:
-- [x] Add download_note view in planner/views.py to handle file download
-- [x] Add URL pattern for download_note in planner/urls.py
-- [x] Add download button next to each note in planner/templates/planner/notes.html
+- [x] Add login and logout views in planner/views.py
+- [x] Add login and logout URL patterns in planner/urls.py
+- [x] Update planner/templates/planner/base.html to conditionally show login/logout links
+- [x] Create planner/templates/planner/login.html template
+- [x] Test the login functionality (server running, test user created)
 
-## Requirements:
-- Download button next to each notes entry
-- Download as .txt file
-- Filename: subjectname_notes.txt
-- Backend function returns file response
-- No external libraries
+# TODO: Add Signup Page and Update Home Page
+
+- [x] Add signup view in planner/views.py
+- [x] Add signup URL pattern in planner/urls.py
+- [x] Create planner/templates/planner/signup.html template
+- [x] Update planner/templates/planner/base.html to include signup link
+- [x] Update planner/templates/planner/login.html to link to signup
+- [x] Update planner/templates/planner/signup.html to link to login
+- [x] Update studyplanner/settings.py with authentication settings
+- [x] Update planner/templates/planner/home.html to show login/signup buttons for unauthenticated users and personalized content for authenticated users

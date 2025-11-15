@@ -10,4 +10,7 @@ urlpatterns = [
     path('quiz/<int:subject_id>/', views.generate_quiz, name='generate_quiz'),
     path('generate_studyplan/<int:subject_id>/', views.generate_study_plan_view, name='generate_study_plan'),
     path('download_note/<int:note_id>/', views.download_note, name='download_note'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('signup/', views.signup_view, name='signup'),
 ]

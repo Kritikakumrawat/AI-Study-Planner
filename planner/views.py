@@ -1,7 +1,10 @@
 import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
-from django.contrib import messages
+from django.contrib import messages, auth
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
 from .models import Subject, StudyPlan, Notes, Quiz
 from .features.summarizer import summarize_text
 from .features.ai_helper import generate_quiz_questions
@@ -139,3 +142,40 @@ def download_note(request, note_id):
     response = HttpResponse(note.content, content_type='text/plain')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+# Login view
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            messages.success(request, 'Logged in successfully!')
+            return redirect('home')
+        else:
+            messages.error(request, 'Invalid username or password.')
+    return render(request, 'planner/login.html')
+
+# Logout view
+def logout_view(request):
+    logout(request)
+    messages.success(request, 'Logged out successfully!')
+    return redirect('home')
+
+# Signup view
+def signup_view(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, 'Account created successfully!')
+            return redirect('home')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = UserCreationForm()
+    return render(request, 'planner/signup.html', {'form': form})
+
+
