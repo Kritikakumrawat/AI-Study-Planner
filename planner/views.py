@@ -208,4 +208,9 @@ def signup_view(request):
         form = UserCreationForm()
     return render(request, 'planner/signup.html', {'form': form})
 
+# Profile view
+@login_required
+def profile_view(request):
+    return render(request, 'planner/profile.html')
+
 
