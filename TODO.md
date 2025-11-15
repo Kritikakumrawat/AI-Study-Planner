@@ -16,3 +16,10 @@
 - [x] Update planner/templates/planner/signup.html to link to login
 - [x] Update studyplanner/settings.py with authentication settings
 - [x] Update planner/templates/planner/home.html to show login/signup buttons for unauthenticated users and personalized content for authenticated users
+
+# TODO: Add User Profile with Phone and Email
+
+- [x] Add UserProfile model with phone_number and email in planner/models.py
+- [x] Update signup to collect phone and email
+- [x] Update login to allow login with username, email, or phone
+- [x] Run migrations for UserProfile
