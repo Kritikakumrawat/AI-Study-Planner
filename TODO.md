@@ -23,3 +23,11 @@
 - [x] Update signup to collect phone and email
 - [x] Update login to allow login with username, email, or phone
 - [x] Run migrations for UserProfile
+
+# TODO: Add About Section on Home Page
+
+- [x] Add course_details field to UserProfile model
+- [x] Update signup form to include course details
+- [x] Update signup view to save course details
+- [x] Add About section to home page for authenticated users showing profile info
+- [x] Run migrations for course_details field

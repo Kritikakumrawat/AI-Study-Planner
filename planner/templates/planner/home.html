@@ -31,6 +31,34 @@
     </a>
   </div>
 </div>
+
+<!-- About Section for Authenticated Users -->
+<section class="about-section py-5">
+  <div class="container">
+    <h2 class="text-center mb-4">About You</h2>
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow">
+          <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-user-circle me-2"></i>User Profile</h4>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <p><strong>Username:</strong> {{ user.username }}</p>
+                <p><strong>Email:</strong> {{ user.userprofile.email|default:"Not provided" }}</p>
+              </div>
+              <div class="col-md-6">
+                <p><strong>Phone Number:</strong> {{ user.userprofile.phone_number|default:"Not provided" }}</p>
+                <p><strong>Course Details:</strong> {{ user.userprofile.course_details|default:"Not provided" }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 {% endif %}
 
 <section id="features" class="features-section py-5">

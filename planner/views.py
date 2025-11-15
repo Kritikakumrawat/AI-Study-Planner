@@ -196,7 +196,8 @@ def signup_view(request):
             UserProfile.objects.create(
                 user=user,
                 phone_number=request.POST.get('phone_number'),
-                email=request.POST.get('email')
+                email=request.POST.get('email'),
+                course_details=request.POST.get('course_details')
             )
             login(request, user)
             messages.success(request, 'Account created successfully!')
