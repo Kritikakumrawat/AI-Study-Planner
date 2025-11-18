@@ -1,14 +1,18 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
 import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
-from django.contrib import messages
+from django.contrib import messages  # <-- Import messages
 from .models import Subject, StudyPlan, Notes, Quiz
 from .features.summarizer import summarize_text
 from .features.ai_helper import generate_quiz_questions
 from .features.study_planner import generate_study_plan
 from .features.pdf_reader import extract_text_from_pdf
 from datetime import datetime, timedelta
-
 logger = logging.getLogger(__name__)
 
 # Home page
@@ -81,6 +85,7 @@ def generate_notes(request, subject_id):
         return JsonResponse({
             'success': True,
             'note': {
+                'id': note.id,  # <-- **** KEY FIX 1 ****
                 'content': note.content,
                 'created_at': note.created_at.strftime('%Y-%m-%d %H:%M:%S')
             }
@@ -93,38 +98,65 @@ def generate_quiz(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
     text = ""
     if subject.syllabus_file:
-        text = extract_text_from_pdf(subject.syllabus_file.path)
+        try:
+            text = extract_text_from_pdf(subject.syllabus_file.path)
+        except Exception as e:
+            logger.error(f"Failed to extract PDF text for quiz (Subject: {subject.id}): {str(e)}")
+            text = "" # Fallback to placeholder
+            
     if not text:
         text = f"Sample content for {subject.name}. This is placeholder text for quiz generation."
-    quiz_data = generate_quiz_questions(text, num_questions=5)
-    for q in quiz_data:
-        Quiz.objects.create(
-            subject=subject,
-            question=q['question'],
-            option_a=q['options'][0] if len(q['options']) > 0 else "",
-            option_b=q['options'][1] if len(q['options']) > 1 else "",
-            option_c=q['options'][2] if len(q['options']) > 2 else "",
-            option_d=q['options'][3] if len(q['options']) > 3 else "",
-            correct_answer=q['answer']
-        )
-    quizzes = Quiz.objects.filter(subject=subject)
+
+    # --- **** KEY FIX 2 **** ---
+    try:
+        quiz_data = generate_quiz_questions(text, num_questions=5)
+        
+        # Optional: Clear old quizzes before adding new ones
+        # Quiz.objects.filter(subject=subject).delete()
+
+        for q in quiz_data:
+            Quiz.objects.create(
+                subject=subject,
+                question=q['question'],
+                option_a=q['options'][0] if len(q['options']) > 0 else "",
+                option_b=q['options'][1] if len(q['options']) > 1 else "",
+                option_c=q['options'][2] if len(q['options']) > 2 else "",
+                option_d=q['options'][3] if len(q['options']) > 3 else "",
+                correct_answer=q['answer']
+            )
+        
+        messages.success(request, f"Successfully generated a new {len(quiz_data)}-question quiz!")
+
+    except Exception as e:
+        logger.error(f"AI quiz generation failed for subject {subject.name} (ID: {subject_id}): {str(e)}")
+        messages.error(request, "The AI failed to generate a quiz. Please check your API key or try again.")
+    # --- **** END FIX 2 **** ---
+
+    quizzes = Quiz.objects.filter(subject=subject).order_by('-id') # Show newest first
     return render(request, 'planner/quiz.html', {'subject': subject, 'quizzes': quizzes})
 
 # Generate AI Study Plan
 def generate_study_plan_view(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
     # Assume exam date is provided or default to 30 days from now
-    exam_date_str = request.GET.get('exam_date', (datetime.now().date() + datetime.timedelta(days=30)).isoformat())
+    exam_date_str = request.GET.get('exam_date', (datetime.now().date() + timedelta(days=30)).isoformat())
     exam_date = datetime.fromisoformat(exam_date_str).date()
     start_date = datetime.now().date()
     subjects_data = [{"name": subject.name, "weightage": subject.weightage}]
-    plan_data = generate_study_plan(subjects_data, start_date, exam_date)
-    for p in plan_data:
-        StudyPlan.objects.create(
-            subject=subject,
-            plan_text=f"{p.get('topics', 'Study')} - {p['hours']} hours"
-        )
-    studyplans = StudyPlan.objects.filter(subject=subject)
+    
+    try:
+        plan_data = generate_study_plan(subjects_data, start_date, exam_date)
+        for p in plan_data:
+            StudyPlan.objects.create(
+                subject=subject,
+                plan_text=f"{p.get('topics', 'Study')} - {p['hours']} hours"
+            )
+        messages.success(request, "Successfully generated a new study plan!")
+    except Exception as e:
+        logger.error(f"AI study plan generation failed for subject {subject.name}: {str(e)}")
+        messages.error(request, "The AI failed to generate a study plan. Please try again.")
+
+    studyplans = StudyPlan.objects.filter(subject=subject).order_by('-id')
     return render(request, 'planner/studyplan.html', {
         'subject': subject,
         'studyplans': studyplans,
