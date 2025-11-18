@@ -6,7 +6,11 @@ api_key = os.getenv("OPENAI_API_KEY")
 import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
-from django.contrib import messages  # <-- Import messages
+from django.contrib import messages, auth
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from .models import UserProfile
 from .models import Subject, StudyPlan, Notes, Quiz
 from .features.summarizer import summarize_text
 from .features.ai_helper import generate_quiz_questions
@@ -171,3 +175,74 @@ def download_note(request, note_id):
     response = HttpResponse(note.content, content_type='text/plain')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+# Login view
+def login_view(request):
+    if request.method == 'POST':
+        identifier = request.POST.get('username')  # This can be username, email, or phone
+        password = request.POST.get('password')
+
+        user = None
+        # Try to authenticate with username first
+        user = authenticate(request, username=identifier, password=password)
+
+        # If not found, try with email
+        if user is None:
+            try:
+                from .models import UserProfile
+                profile = UserProfile.objects.get(email=identifier)
+                user = authenticate(request, username=profile.user.username, password=password)
+            except UserProfile.DoesNotExist:
+                pass
+
+        # If not found, try with phone number
+        if user is None:
+            try:
+                from .models import UserProfile
+                profile = UserProfile.objects.get(phone_number=identifier)
+                user = authenticate(request, username=profile.user.username, password=password)
+            except UserProfile.DoesNotExist:
+                pass
+
+        if user is not None:
+            login(request, user)
+            messages.success(request, 'Logged in successfully!')
+            return redirect('home')
+        else:
+            messages.error(request, 'Invalid credentials.')
+    return render(request, 'planner/login.html')
+
+# Logout view
+def logout_view(request):
+    logout(request)
+    messages.success(request, 'Logged out successfully!')
+    return redirect('home')
+
+# Signup view
+def signup_view(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Create UserProfile
+            UserProfile.objects.create(
+                user=user,
+                phone_number=request.POST.get('phone_number'),
+                email=request.POST.get('email'),
+                course_details=request.POST.get('course_details')
+            )
+            login(request, user)
+            messages.success(request, 'Account created successfully!')
+            return redirect('home')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = UserCreationForm()
+    return render(request, 'planner/signup.html', {'form': form})
+
+# Profile view
+@login_required
+def profile_view(request):
+    return render(request, 'planner/profile.html')
+
+
