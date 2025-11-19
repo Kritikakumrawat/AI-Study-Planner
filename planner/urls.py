@@ -1,3 +1,5 @@
+# planner/urls.py (Complete File)
+
 from django.urls import path
 from . import views
 
@@ -14,4 +16,8 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('signup/', views.signup_view, name='signup'),
     path('profile/', views.profile_view, name='profile'),
+    # --- SUBJECT SELECTION ---
+    path('select-subjects/', views.subject_selection_view, name='select_subjects'), 
+    # --- NEW SUBJECT CREATION ---
+    path('add-subject/', views.add_subject_view, name='add_subject'),
 ]
