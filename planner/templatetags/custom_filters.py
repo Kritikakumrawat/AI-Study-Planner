@@ -9,3 +9,14 @@ def get_item(dictionary, key):
     if isinstance(dictionary, dict):
         return dictionary.get(key)
     return None
+
+@register.filter
+def get_option(quiz, answer_key):
+    """Returns the option text for a given answer key (A, B, C, D)."""
+    options = {
+        'A': quiz.option_a,
+        'B': quiz.option_b,
+        'C': quiz.option_c,
+        'D': quiz.option_d,
+    }
+    return options.get(answer_key.upper(), 'N/A')

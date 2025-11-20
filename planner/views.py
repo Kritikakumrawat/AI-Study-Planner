@@ -384,7 +384,7 @@ def subject_selection_view(request):
 
     else:
         initial_data = {'subjects': profile.selected_subjects.all()}
-        form = SubjectSelectionForm(initial=initial_data)
+        form = SubjectSelectionForm(initial_data)
 
     context = {'form': form}
     return render(request, 'planner/subject_selection.html', context)
@@ -509,3 +509,20 @@ def submit_quiz(request, subject_id):
     
     # If a GET request, just redirect back to the quiz starting page
     return redirect('generate_quiz', subject_id=subject_id)
+
+def welcome_api(request):
+    """API endpoint that logs the request and returns a JSON welcome message with metadata."""
+    # Log the request
+    logger.info(f"Request received: method={request.method}, path={request.path}, user_agent={request.META.get('HTTP_USER_AGENT', 'Unknown')}")
+    
+    # Prepare the response data
+    response_data = {
+        "message": "Welcome to the AI Study Planner API!",
+        "method": request.method,
+        "path": request.path,
+        "timestamp": datetime.now().isoformat(),
+        "user_agent": request.META.get('HTTP_USER_AGENT', 'Unknown'),
+        "remote_addr": request.META.get('REMOTE_ADDR', 'Unknown')
+    }
+    
+    return JsonResponse(response_data)

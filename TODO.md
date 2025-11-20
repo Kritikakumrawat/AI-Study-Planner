@@ -1,4 +1,5 @@
-# TODO for Profile Dropdown and About Page Updates
+# TODO: Add Welcome API Endpoint
 
-- [x] Add profile dropdown menu to navbar in base.html for authenticated users with items: Upgrade Plan, Personalization, Settings, Help, Logout
-- [x] Add detailed explanations for each dropdown item to the "About You" section in home.html
+- [ ] Add welcome_view function in planner/views.py
+- [ ] Add URL pattern for /api/welcome/ in planner/urls.py
+- [ ] Test the endpoint by running the server and making a request

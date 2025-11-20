@@ -15,7 +15,7 @@ openai.api_key = getattr(settings, 'OPENAI_API_KEY', None)
 # --- Fallback Imports ---
 from . import summarizer # Existing file
 from . import study_planner # Existing file
-from .ai_helper_mock import generate_quiz_questions_mock # New file/function for mock quiz
+from .generate_quiz_questions import generate_quiz_questions_mock # New file/function for mock quiz
 # --- Fallback Imports ---
 
 

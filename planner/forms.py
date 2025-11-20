@@ -15,6 +15,5 @@ class SubjectSelectionForm(forms.Form):
 class SubjectCreateForm(forms.ModelForm):
     class Meta:
         model = Subject
-        # We only need the user to input the name.
-        # syllabus_file and weightage can be added later or default.
-        fields = ['name']
+        # Include name and weightage for user input.
+        fields = ['name', 'weightage']
