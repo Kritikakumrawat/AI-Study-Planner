@@ -1,1 +1,12 @@
+# Django specific files
+*.log
+*.pot
+*.pyc
+__pycache__/
+media/
+
+# IDE specific files
+.vscode/
+
+# Environment files (CRITICAL for security)
 .env

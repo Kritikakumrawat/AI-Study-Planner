@@ -20,4 +20,7 @@ from django.urls import path, include   # include is important
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('planner.urls')),   # this connects your app's urls
+    # planner/urls.py (Add this line near the end of the urlpatterns list)
+
+    path('quiz/<int:subject_id>/submit/', views.submit_quiz, name='submit_quiz'),
 ]

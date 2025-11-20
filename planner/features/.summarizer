@@ -1,0 +1,13 @@
+# planner/features/summarizer.py
+# Simple local text summarizer for fallback mode
+
+def summarize_text(text: str, max_sentences: int = 5) -> str:
+    """A basic local summarizer that just takes the first few lines of text."""
+    if not text:
+        return "Local Fallback: Text content was empty or unreadable."
+        
+    sentences = [s.strip() for s in text.split('.') if s.strip()]
+    
+    summary_sentences = sentences[:max_sentences]
+    
+    return "**Local Summary Fallback:**\n\n" + ". ".join(summary_sentences) + "."

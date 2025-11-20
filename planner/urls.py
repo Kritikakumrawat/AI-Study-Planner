@@ -27,4 +27,7 @@ urlpatterns = [
     # --- USER FLOWS ---
     path('select-subjects/', views.subject_selection_view, name='select_subjects'), 
     path('add-subject/', views.add_subject_view, name='add_subject'),
+    # planner/urls.py (Add this line)
+
+    path('quiz/<int:subject_id>/submit/', views.submit_quiz, name='submit_quiz'),
 ]
