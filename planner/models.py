@@ -50,10 +50,18 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
 
 # --- 4. OTHER STUDY MODELS (REMAINING AS IS) ---
 
+# planner/models.py (Snippet)
+
+from django.contrib.auth.models import User
+# ...
+
 class StudyPlan(models.Model):
+    # CRITICAL: This line must exist in your models.py
+    user = models.ForeignKey(User, on_delete=models.CASCADE) 
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     plan_text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    # ...
 
     def __str__(self):
         return f"Study Plan for {self.subject.name}"

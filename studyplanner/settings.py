@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv()  # this loads variables from your .env file
+load_dotenv() # this loads variables from your .env file
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'planner',
+    'planner', 
 ]
 
 MIDDLEWARE = [

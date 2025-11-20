@@ -10,6 +10,7 @@ from django.contrib import messages, auth
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from collections import defaultdict # <-- NEW IMPORT for timetable view
 # --- REQUIRED IMPORTS ---
 from .models import UserProfile
 from .forms import SubjectSelectionForm, SubjectCreateForm
@@ -36,20 +37,50 @@ def subject_list(request):
         
     try:
         profile = request.user.userprofile
+        # FILTERING: Only show subjects the user has selected
         subjects = profile.selected_subjects.all()
     except Exception as e:
         logger.error(f"Error accessing profile or subjects for user {request.user.username}: {e}")
         messages.error(request, "Error retrieving profile data. Please log in again.")
-        # We redirect to 'logout' to clear the corrupted session
         return redirect('logout') 
 
     return render(request, 'planner/subjects.html', {'subjects': subjects})
 
+# --- ADDED TIMETABLE VIEW (Step 24) ---
+# planner/views.py (REPLACE timetable_view TEMPORARILY)
+
+# planner/views.py (REPLACE timetable_view)
+
+@login_required
+def timetable_view(request):
+    """Retrieves all study plans for the current user for display on the timetable page."""
+    
+    # 1. Filter the study plans by the logged-in user
+    # This should now work if your database is finally synchronized
+    studyplans = StudyPlan.objects.filter(user=request.user).order_by('created_at')
+    
+    # 2. Get the user's selected subjects for context/filtering other data
+    try:
+        profile = request.user.userprofile
+        selected_subjects = profile.selected_subjects.all()
+    except:
+        selected_subjects = Subject.objects.none() # Empty queryset if error
+
+    context = {
+        'studyplans': studyplans,
+        'selected_subjects': selected_subjects,
+        # You may add more data here later (e.g., upcoming exams for the user)
+    }
+    
+    return render(request, 'planner/timetable.html', context)
+
 # Show study plan and notes for a subject
+@login_required 
 def study_plan_list(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
-    studyplans = StudyPlan.objects.filter(subject=subject)
-    notes = Notes.objects.filter(subject=subject).order_by('-created_at')
+    # FILTERING: Filter by user AND subject
+    studyplans = StudyPlan.objects.filter(user=request.user, subject=subject) 
+    notes = Notes.objects.filter(user=request.user, subject=subject).order_by('-created_at') 
     return render(request, 'planner/studyplan.html', {
         'subject': subject,
         'studyplans': studyplans,
@@ -57,18 +88,25 @@ def study_plan_list(request, subject_id):
     })
 
 # Display Notes for a subject
+@login_required 
 def notes(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
-    notes = Notes.objects.filter(subject=subject).order_by('-created_at')
-    exam = subject.exams.first()  # Assuming one exam per subject
+    # FILTERING: Filter by user AND subject
+    notes = Notes.objects.filter(user=request.user, subject=subject).order_by('-created_at') 
+    
+    # NOTE: Exam filtering is complex due to null=True in models.
+    exam = subject.exams.filter(user=request.user).first() or subject.exams.first() 
     exam_date = exam.exam_date if exam else None
+    
     return render(request, 'planner/notes.html', {'subject': subject, 'notes': notes, 'exam_date': exam_date})
 
 # Generate AI Notes
+@login_required 
 def generate_notes(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
 
-    # Check if syllabus file exists
+    # ... (rest of PDF and AI calling logic remains the same) ...
+    
     if not subject.syllabus_file:
         error_message = "No syllabus available for generating notes."
         logger.error(f"No syllabus file for subject {subject.name} (ID: {subject_id})")
@@ -83,13 +121,15 @@ def generate_notes(request, subject_id):
         text = extract_text_from_pdf(subject.syllabus_file.path)
     except Exception as e:
         logger.error(f"Failed to extract text from PDF for subject {subject.name} (ID: {subject_id}): {str(e)}")
-        text = ""  # Treat as no text
+        text = "" 
 
     if not text:
         text = f"Sample content for {subject.name}. This is placeholder text for AI summarization."
 
     try:
-        generated_text = summarize_text(text)
+        # Use external_summarize for robust AI call
+        from .features.ai_helper import external_summarize
+        generated_text = external_summarize(text) 
     except Exception as e:
         error_message = "AI failed to generate notes. Try again."
         logger.error(f"AI summarization failed for subject {subject.name} (ID: {subject_id}): {str(e)}")
@@ -99,7 +139,13 @@ def generate_notes(request, subject_id):
             messages.error(request, error_message)
             return redirect('notes', subject_id=subject_id)
 
-    note = Notes.objects.create(subject=subject, content=generated_text, ai_generated=True)
+    # SAVING: Add user=request.user when creating the note
+    note = Notes.objects.create(
+        user=request.user, 
+        subject=subject, 
+        content=generated_text, 
+        ai_generated=True
+    )
 
     # Check if it's an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -115,6 +161,7 @@ def generate_notes(request, subject_id):
         return redirect('notes', subject_id=subject_id)
 
 # Generate Quiz for a subject
+@login_required 
 def generate_quiz(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
     text = ""
@@ -123,19 +170,19 @@ def generate_quiz(request, subject_id):
             text = extract_text_from_pdf(subject.syllabus_file.path)
         except Exception as e:
             logger.error(f"Failed to extract PDF text for quiz (Subject: {subject.id}): {str(e)}")
-            text = "" # Fallback to placeholder
-            
+            text = "" 
+    
     if not text:
         text = f"Sample content for {subject.name}. This is placeholder text for quiz generation."
 
     try:
+        from .features.ai_helper import generate_quiz_questions
         quiz_data = generate_quiz_questions(text, num_questions=5)
         
-        # Optional: Clear old quizzes before adding new ones
-        # Quiz.objects.filter(subject=subject).delete()
-
         for q in quiz_data:
+            # SAVING: Add user=request.user when creating the quiz
             Quiz.objects.create(
+                user=request.user, 
                 subject=subject,
                 question=q['question'],
                 option_a=q['options'][0] if len(q['options']) > 0 else "",
@@ -149,71 +196,102 @@ def generate_quiz(request, subject_id):
 
     except Exception as e:
         logger.error(f"AI quiz generation failed for subject {subject.name} (ID: {subject_id}): {str(e)}")
-        messages.error(request, "The AI failed to generate a quiz. Please check your API key or try again.")
+        messages.error(request, "The AI failed to generate a quiz. Please check your AI service logs.")
         
-    quizzes = Quiz.objects.filter(subject=subject).order_by('-id') # Show newest first
+    # FILTERING: Filter by user AND subject
+    quizzes = Quiz.objects.filter(user=request.user, subject=subject).order_by('-id') 
     return render(request, 'planner/quiz.html', {'subject': subject, 'quizzes': quizzes})
 
-# Generate AI Study Plan
-def generate_study_plan_view(request, subject_id):
-    subject = get_object_or_404(Subject, id=subject_id)
-    # Assume exam date is provided or default to 30 days from now
-    exam_date_str = request.GET.get('exam_date', (datetime.now().date() + timedelta(days=30)).isoformat())
-    exam_date = datetime.fromisoformat(exam_date_str).date()
-    start_date = datetime.now().date()
-    subjects_data = [{"name": subject.name, "weightage": subject.weightage}] 
+# Generate AI Study Plan (Refined to use all user subjects)
+@login_required
+def generate_study_plan_view(request):
+    """Generates an AI study plan based on ALL of the user's selected subjects."""
+    
+    user = request.user
     
     try:
-        plan_data = generate_study_plan(subjects_data, start_date, exam_date)
-        for p in plan_data:
-            StudyPlan.objects.create(
-                subject=subject,
-                plan_text=f"{p.get('topics', 'Study')} - {p['hours']} hours"
-            )
-        messages.success(request, "Successfully generated a new study plan!")
-    except Exception as e:
-        logger.error(f"AI study plan generation failed for subject {subject.name}: {str(e)}")
-        messages.error(request, "The AI failed to generate a study plan. Please try again.")
+        profile = user.userprofile
+        selected_subjects = profile.selected_subjects.all()
+    except UserProfile.DoesNotExist:
+        messages.error(request, "Please select your subjects first.")
+        return redirect('select_subjects')
+    
+    if not selected_subjects.exists():
+        messages.warning(request, "You need to select subjects before generating a plan.")
+        return redirect('select_subjects')
 
-    studyplans = StudyPlan.objects.filter(subject=subject).order_by('-id')
-    return render(request, 'planner/studyplan.html', {
-        'subject': subject,
-        'studyplans': studyplans,
-        'notes': Notes.objects.filter(subject=subject).order_by('-created_at'),
-    })
+    subjects_data = []
+    for subject in selected_subjects:
+        subjects_data.append({
+            "name": subject.name,
+            "weightage": subject.weightage 
+        })
+        
+    exam_date = datetime.now().date() + timedelta(days=30)
+    start_date = datetime.now().date()
+    
+    try:
+        from .features.ai_helper import generate_study_plan_ai
+        plan_data = generate_study_plan_ai(subjects_data, start_date.isoformat(), exam_date.isoformat())
+        
+        for p in plan_data:
+            subject_name = p.get('subject_name', subjects_data[0]['name'])
+            
+            try:
+                subject_obj = Subject.objects.get(name=subject_name) 
+            except Subject.DoesNotExist:
+                 logger.warning(f"AI plan generated unknown subject: {subject_name}")
+                 continue
+
+            # SAVING: Add user=request.user when creating the plan
+            StudyPlan.objects.create(
+                user=request.user, 
+                subject=subject_obj,
+                plan_text=f"Date: {p.get('date', 'N/A')} | Topics: {p.get('topics', 'Study')} - {p.get('hours', 0)} hours"
+            )
+            
+        messages.success(request, "Successfully generated a new study plan!")
+        
+    except Exception as e:
+        logger.error(f"AI study plan generation failed for user {user.username}: {str(e)}")
+        messages.error(request, "The AI failed to generate a study plan. Please check your AI service logs.")
+
+    # Redirect to the timetable view to see the result
+    return redirect('timetable') 
 
 # Download Notes
+@login_required # Added protection
 def download_note(request, note_id):
     note = get_object_or_404(Notes, id=note_id)
+    # Ensure only the owner can download
+    if note.user != request.user:
+        messages.error(request, "You do not have permission to download this note.")
+        return redirect('notes', subject_id=note.subject.id)
+        
     subject_name = note.subject.name.replace(' ', '_').lower()
     filename = f"{subject_name}_notes.txt"
     response = HttpResponse(note.content, content_type='text/plain')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
-# Login view
+# Login view (No changes needed)
 def login_view(request):
     if request.method == 'POST':
-        identifier = request.POST.get('username')  # This can be username, email, or phone
+        identifier = request.POST.get('username')
         password = request.POST.get('password')
 
         user = None
-        # Try to authenticate with username first
         user = authenticate(request, username=identifier, password=password)
 
-        # If not found, try with email
         if user is None:
             try:
-                from .models import UserProfile
                 profile = UserProfile.objects.get(email=identifier)
                 user = authenticate(request, username=profile.user.username, password=password)
             except UserProfile.DoesNotExist:
                 pass
 
-        # If not found, try with phone number
         if user is None:
             try:
-                from .models import UserProfile
                 profile = UserProfile.objects.get(phone_number=identifier)
                 user = authenticate(request, username=profile.user.username, password=password)
             except UserProfile.DoesNotExist:
@@ -227,21 +305,20 @@ def login_view(request):
             messages.error(request, 'Invalid credentials.')
     return render(request, 'planner/login.html')
 
-# Logout view
+# Logout view (No changes needed)
 def logout_view(request):
     logout(request)
     messages.success(request, 'Logged out successfully!')
     return redirect('home')
 
-# Signup view
+# Signup view (Corrected in Step 16)
 def signup_view(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             
-            # --- START CORRECTED PROFILE UPDATE LOGIC (Step 16) ---
-            # Profile is guaranteed to exist due to the post_save signal. We only update it.
+            # --- CORRECTED PROFILE UPDATE LOGIC ---
             try:
                 profile = user.userprofile
                 profile.phone_number = request.POST.get('phone_number')
@@ -249,18 +326,16 @@ def signup_view(request):
                 profile.course_details = request.POST.get('course_details')
                 profile.save()
             except UserProfile.DoesNotExist:
-                # Failsafe: if signal somehow failed (highly unlikely now), create it now
                 UserProfile.objects.create(
                     user=user,
                     phone_number=request.POST.get('phone_number'),
                     email=request.POST.get('email'),
                     course_details=request.POST.get('course_details')
                 )
-            # --- END CORRECTED PROFILE UPDATE LOGIC ---
             
             login(request, user)
             messages.success(request, 'Account created successfully! Now select your subjects.')
-            return redirect('select_subjects') # REDIRECTS TO NEW SELECTION VIEW
+            return redirect('select_subjects') 
 
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -268,34 +343,30 @@ def signup_view(request):
         form = UserCreationForm()
     return render(request, 'planner/signup.html', {'form': form})
 
-# Profile view
+# Profile view (No changes needed)
 @login_required
 def profile_view(request):
     return render(request, 'planner/profile.html')
 
 # --- SUBJECT SELECTION VIEW ---
-
 @login_required 
 def subject_selection_view(request):
     try:
         profile = request.user.userprofile 
     except UserProfile.DoesNotExist:
         messages.error(request, "User profile not found. Please log in again.")
-        return redirect('logout') # Use the correct URL name 'logout'
+        return redirect('logout') 
 
     if request.method == 'POST':
         form = SubjectSelectionForm(request.POST)
         if form.is_valid():
             selected_subjects = form.cleaned_data['subjects']
-            
-            # Update the UserProfile's selected_subjects field
             profile.selected_subjects.set(selected_subjects) 
             
             messages.success(request, "Subjects saved successfully!")
             return redirect('home') 
 
     else:
-        # On GET request, pre-select any subjects already chosen
         initial_data = {'subjects': profile.selected_subjects.all()}
         form = SubjectSelectionForm(initial=initial_data)
 
@@ -303,31 +374,26 @@ def subject_selection_view(request):
     return render(request, 'planner/subject_selection.html', context)
     
 # --- NEW SUBJECT ADDITION VIEW ---
-
 @login_required
 def add_subject_view(request):
     """Allows authenticated users to create a new Subject instance."""
     if request.method == 'POST':
-        form = SubjectCreateForm(request.POST) # Uses the ModelForm defined in forms.py
+        form = SubjectCreateForm(request.POST) 
         if form.is_valid():
             new_subject = form.save(commit=False)
             new_subject.save() 
             
-            # Add the newly created subject to the user's selected subjects immediately
             request.user.userprofile.selected_subjects.add(new_subject)
             
             messages.success(request, f"Subject '{new_subject.name}' added and selected successfully!")
-            # Redirect back to the subject list
             return redirect('subjects')
         else:
             messages.error(request, "Failed to add subject. Please check the name.")
     else:
-        form = SubjectCreateForm() # Render empty form on GET
+        form = SubjectCreateForm() 
 
     context = {
         'form': form,
         'title': 'Add New Subject'
     }
-    
-    # NOTE: The frontend team needs to create 'planner/add_subject.html' 
     return render(request, 'planner/add_subject.html', context)
