@@ -1,21 +1,22 @@
-# studyplanner/urls.py (Corrected File)
-
 """
 URL configuration for studyplanner project.
-... (rest of original comments)
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings # NEW: Import settings
+from django.conf.urls.static import static # NEW: Import static handler
 
-# ❌ REMOVE THIS LINE:
-# from planner import views
+# Note: Keeping the clean structure, relying on planner.urls for app views.
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # ✅ Keep this line - it includes all URLs (including quiz/submit) from planner/urls.py
+    # This line includes all URLs defined in planner/urls.py
     path('', include('planner.urls')), 
-    
-    # ❌ REMOVE THE FOLLOWING LINE:
-    # path('quiz/<int:subject_id>/submit/', views.submit_quiz, name='submit_quiz'),
 ]
+
+# --- REQUIRED FOR SERVING USER UPLOADED FILES (MEDIA) IN DEVELOPMENT ---
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
+# NOTE: The static files (CSS, JS) are handled automatically in development.

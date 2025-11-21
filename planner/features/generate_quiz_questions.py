@@ -1,10 +1,10 @@
-# planner/features/ai_helper_mock.py
+# planner/features/generate_quiz_questions.py
 # Mock implementation for quiz generation when API is unavailable
 
 from typing import List, Dict
 import random
 
-# RENAMED: Changed to generate_quiz_questions to match the import in views.py
+# The function name is correct: generate_quiz_questions
 def generate_quiz_questions(text: str, num_questions: int = 5) -> List[Dict]:
     """Mocks AI generation of quiz questions based on input text."""
     

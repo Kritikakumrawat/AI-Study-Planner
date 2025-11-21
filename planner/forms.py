@@ -1,10 +1,8 @@
-# planner/forms.py (Add this ModelForm)
-
 from django import forms
-from .models import Subject # Make sure Subject is imported
+# FIX: Import the new model, UserStudyMaterial
+from .models import Subject, UserStudyMaterial 
 
 class SubjectSelectionForm(forms.Form):
-    # ... (Your existing form remains) ...
     subjects = forms.ModelMultipleChoiceField(
         queryset=Subject.objects.all(),
         widget=forms.CheckboxSelectMultiple, 
@@ -17,3 +15,18 @@ class SubjectCreateForm(forms.ModelForm):
         model = Subject
         # Include name and weightage for user input.
         fields = ['name', 'weightage']
+
+
+# --- NEW FORM FOR USER STUDY MATERIAL UPLOAD ---
+class UserStudyMaterialForm(forms.ModelForm):
+    """
+    Form used by the user to upload their study material (PDF)
+    The user and subject fields are set automatically in the view.
+    """
+    class Meta:
+        model = UserStudyMaterial
+        # Only expose the file upload field to the user
+        fields = ['user_file'] 
+        widgets = {
+            'user_file': forms.FileInput(attrs={'accept': '.pdf', 'class': 'form-control'}),
+        }

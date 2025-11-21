@@ -11,14 +11,20 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm
-
+from django.core.exceptions import ObjectDoesNotExist 
+from django.conf import settings # Needed for file upload handling
 
 # --- PROJECT IMPORTS ---
-from .models import UserProfile, Subject, StudyPlan, Notes, Quiz
-from .forms import SubjectSelectionForm, SubjectCreateForm
+# NOTE: The UserStudyMaterial import is commented out here to prevent the initial
+# ImportError crash, as UserStudyMaterial is not yet in models.py. 
+# We'll rely on local imports inside the functions for now.
+from .models import UserProfile, Subject, StudyPlan, Notes, Quiz 
+from .forms import SubjectSelectionForm, SubjectCreateForm, UserStudyMaterialForm # NOTE: UserStudyMaterialForm is still imported for use in upload_study_material
+
 # Assuming these AI feature modules exist in planner/features/
-# NOTE: Removed redundant internal imports inside functions
-from .features.ai_helper import external_summarize, generate_quiz_questions, generate_study_plan_ai
+# We import the AiHelper CLASS and the Pydantic models (Note, Subject)
+# CORRECTED LINE in planner/views.py:
+from .features.ai_helper import AiHelper, Note, SubjectLineModel
 from .features.pdf_reader import extract_text_from_pdf
 # ------------------------
 
@@ -27,6 +33,9 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 logger = logging.getLogger(__name__)
 
+# --- CORRECT INSTANTIATION: Create an instance of the helper class here ---
+ai_helper = AiHelper()
+# --------------------------------------------------------------------------
 
 # Home page
 def home(request):
@@ -46,7 +55,6 @@ def subject_list(request):
         messages.error(request, "Error retrieving profile data. Please log in again.")
         return redirect('logout') 
 
-    # --- CRITICAL FLOW CONTROL FIX ---
     # If the user has a profile but hasn't selected any subjects yet, 
     # redirect them to the selection page if subjects exist globally.
     if not selected_subjects.exists():
@@ -54,7 +62,8 @@ def subject_list(request):
         if Subject.objects.exists():
             messages.info(request, "Please select the subjects you want to study first.")
             return redirect('select_subjects')
-        # If no subjects exist anywhere, the user must use the 'add_subject' button.
+        # If no subjects exist anywhere, prompt user to create one
+        messages.info(request, "No subjects found. Please create one.")
         
     return render(request, 'planner/subjects.html', {'subjects': selected_subjects})
 
@@ -79,23 +88,102 @@ def notes(request, subject_id):
     notes = Notes.objects.filter(user=request.user, subject=subject).order_by('-created_at') 
     
     # NOTE: Simplified exam lookup, assuming exams are tied to subjects generally
-    exam = subject.exams.first() 
+    exam = subject.exams.first() if hasattr(subject, 'exams') else None
     exam_date = exam.exam_date if exam else None
     
-    return render(request, 'planner/notes.html', {'subject': subject, 'notes': notes, 'exam_date': exam_date})
+    # NEW: Check if the user has uploaded material for this subject
+    has_uploaded_material = False
+    try:
+        # We need to import the model locally here, as the global import is disabled
+        from .models import UserStudyMaterial
+        if UserStudyMaterial.objects.filter(user=request.user, subject=subject).exists():
+            has_uploaded_material = True
+    except ImportError:
+        # This catches the case where UserStudyMaterial is not yet defined in models.py
+        logger.warning("UserStudyMaterial model not found. AI features relying on it will fail.")
+    except Exception:
+        # Catches cases where the database hasn't been migrated yet, etc.
+        pass
 
-# Generate AI Notes (Cleaned up imports)
+
+    return render(request, 'planner/notes.html', {
+        'subject': subject, 
+        'notes': notes, 
+        'exam_date': exam_date,
+        'has_uploaded_material': has_uploaded_material,
+    })
+
+# --- NEW VIEW: Handles Study Material Upload (Essential for AI Features) ---
+@login_required
+def upload_study_material(request, subject_id):
+    """Allows user to upload a file (PDF) to be used for AI notes/quiz generation."""
+    try:
+        # We try to import the necessary model and form here
+        from .models import UserStudyMaterial 
+        from .forms import UserStudyMaterialForm 
+    except ImportError:
+        messages.error(request, "Study Material features are disabled. Please define UserStudyMaterial model and form.")
+        return redirect('subjects')
+
+    subject = get_object_or_404(Subject, id=subject_id)
+    
+    # Check if material already exists (Optional: delete old one or keep for history)
+    try:
+        existing_material = UserStudyMaterial.objects.get(user=request.user, subject=subject)
+    except ObjectDoesNotExist:
+        existing_material = None
+
+    if request.method == 'POST':
+        form = UserStudyMaterialForm(request.POST, request.FILES, instance=existing_material)
+        if form.is_valid():
+            material = form.save(commit=False)
+            material.user = request.user
+            material.subject = subject
+            material.save()
+            messages.success(request, f"Study material for {subject.name} uploaded successfully!")
+            return redirect('notes', subject_id=subject_id)
+        else:
+            messages.error(request, "Failed to upload file. Check file type and size.")
+    else:
+        form = UserStudyMaterialForm(instance=existing_material)
+        
+    return render(request, 'planner/upload_material.html', {
+        'subject': subject, 
+        'form': form,
+        'existing_material': existing_material
+    })
+
+# Generate AI Notes (UPDATED to use UserStudyMaterial)
 @login_required
 def generate_notes(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
     
-    # Check if it's a POST request, as notes generation should modify state
+    # --- IMPORTANT: Ensure UserStudyMaterial model can be imported before proceeding ---
+    try:
+        from .models import UserStudyMaterial
+    except ImportError:
+        error_message = "UserStudyMaterial model is not defined. Cannot generate notes."
+        logger.error(error_message)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+             return JsonResponse({'success': False, 'message': error_message})
+        messages.error(request, error_message)
+        return redirect('notes', subject_id=subject_id)
+
+
     if request.method != 'POST':
         return redirect('notes', subject_id=subject_id)
 
-    if not subject.syllabus_file:
-        error_message = "No syllabus available for generating notes. Upload one via Admin."
-        logger.error(f"No syllabus file for subject {subject.name} (ID: {subject_id})")
+    # --- CHECK: Look for user-uploaded material ---
+    try:
+        # Check the database for the material
+        user_material = UserStudyMaterial.objects.get(user=request.user, subject=subject)
+        # Check if the file actually exists on the filesystem
+        if not os.path.exists(user_material.user_file.path):
+            raise ObjectDoesNotExist("File not found on disk.")
+    except ObjectDoesNotExist:
+        error_message = "Please upload your study material for this subject first."
+        logger.warning(f"No user material found for user {request.user.username}, subject {subject.name}")
+        
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'message': error_message})
         else:
@@ -104,17 +192,26 @@ def generate_notes(request, subject_id):
 
     text = ""
     try:
-        text = extract_text_from_pdf(subject.syllabus_file.path)
+        # Use the file path from the UserStudyMaterial instance
+        text = extract_text_from_pdf(user_material.user_file.path)
     except Exception as e:
-        logger.error(f"Failed to extract text from PDF for subject {subject.name} (ID: {subject_id}): {str(e)}")
-        text = "" 
+        logger.error(f"Failed to extract text from PDF for user material (ID: {user_material.id}): {str(e)}")
+        # Fallback to a general prompt if PDF extraction fails
+        text = f"Please generate comprehensive study notes for the subject {subject.name} based on its key topics and a general summary of the course."
 
     if not text:
-        # Fallback for AI if PDF extraction fails
-        text = f"Please generate comprehensive study notes for the subject {subject.name}. Include key concepts and a summary."
+        # If the fallback text also somehow fails, this prevents an unnecessary API call
+        error_message = "Could not process file content. Try uploading a different PDF."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+             return JsonResponse({'success': False, 'message': error_message})
+        messages.error(request, error_message)
+        return redirect('notes', subject_id=subject_id)
+
 
     try:
-        generated_text = external_summarize(text) 
+        # --- FIXED FUNCTION CALL ---
+        generated_text = ai_helper.external_summarize(text) 
+        # -------------------------
     except Exception as e:
         error_message = "AI failed to generate notes. Check API connection and try again."
         logger.error(f"AI summarization failed for subject {subject.name} (ID: {subject_id}): {str(e)}")
@@ -148,26 +245,42 @@ def generate_notes(request, subject_id):
         return redirect('notes', subject_id=subject_id)
 
 
-# Generate Quiz for a subject (Cleaned up imports and robust fetching)
+# Generate Quiz for a subject (UPDATED to use UserStudyMaterial)
 @login_required 
 def generate_quiz(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
+    
+    # --- IMPORTANT: Ensure UserStudyMaterial model can be imported before proceeding ---
+    try:
+        from .models import UserStudyMaterial
+    except ImportError:
+        error_message = "UserStudyMaterial model is not defined. Cannot generate quiz."
+        logger.error(error_message)
+        messages.error(request, error_message)
+        return redirect('subjects')
+    
+    # --- CHECK: Look for user-uploaded material ---
+    try:
+        user_material = UserStudyMaterial.objects.get(user=request.user, subject=subject)
+    except ObjectDoesNotExist:
+        messages.error(request, "Please upload study material first to generate a quiz.")
+        return redirect('subjects') # Redirect to a safe page if material is missing
+        
     text = ""
-    if subject.syllabus_file:
-        try:
-            text = extract_text_from_pdf(subject.syllabus_file.path)
-        except Exception as e:
-            logger.error(f"Failed to extract PDF text for quiz (Subject: {subject.id}): {str(e)}")
-            text = "" 
+    try:
+        # Use the file path from the UserStudyMaterial instance
+        text = extract_text_from_pdf(user_material.user_file.path)
+    except Exception as e:
+        logger.error(f"Failed to extract PDF text for quiz (User Material ID: {user_material.id}): {str(e)}")
+        text = "" 
     
     if not text:
-        text = f"Sample content for {subject.name}. This is placeholder text for quiz generation."
+        text = f"Sample quiz content for {subject.name} based on general course topics."
 
-    # NOTE: Quiz generation should usually be triggered only via GET request from the template,
-    # or a dedicated POST endpoint, but we run the generation logic on every GET to simplify flow.
     try:
-        # Assuming generate_quiz_questions is imported at the top
-        quiz_data = generate_quiz_questions(text, num_questions=5)
+        # --- FIXED FUNCTION CALL ---
+        quiz_data = ai_helper.generate_quiz_questions(text, num_questions=5)
+        # -------------------------
         
         # Clear old quizzes for this user/subject before saving new ones
         Quiz.objects.filter(user=request.user, subject=subject).delete()
@@ -214,10 +327,13 @@ def generate_study_plan_view(request):
         return redirect('select_subjects')
 
     subjects_data = []
+    # Set a default late exam date (e.g., 30 days from now)
     exam_date_latest = datetime.now().date() + timedelta(days=30) 
     
     for subject in selected_subjects:
-        latest_exam = subject.exams.order_by('-exam_date').first()
+        # Check for the existence of the 'exams' manager before calling .order_by()
+        latest_exam = subject.exams.order_by('-exam_date').first() if hasattr(subject, 'exams') else None
+        
         if latest_exam and latest_exam.exam_date > exam_date_latest:
              exam_date_latest = latest_exam.exam_date
         
@@ -231,19 +347,21 @@ def generate_study_plan_view(request):
     try:
         # NOTE: Using a robust try/except with a mock fallback for reliable function completion
         try:
-             plan_data = generate_study_plan_ai(subjects_data, start_date.isoformat(), exam_date_latest.isoformat())
+            # --- FIXED FUNCTION CALL ---
+            plan_data = ai_helper.generate_study_plan_ai(subjects_data, start_date.isoformat(), exam_date_latest.isoformat())
+            # ---------------------------
         except Exception as api_e:
-             logger.error(f"AI Plan generation failed, using mock data: {api_e}")
-             # --- Mock/Placeholder Data for Testing ---
-             if not subjects_data:
-                 raise Exception("No subject data available for mock plan.")
-                 
-             mock_subject_name = subjects_data[0]['name']
-             plan_data = [
-                 {'subject_name': mock_subject_name, 'date': (start_date + timedelta(days=1)).isoformat(), 'topics': f'Mock: Review basics of {mock_subject_name}', 'hours': 2},
-                 {'subject_name': mock_subject_name, 'date': (start_date + timedelta(days=2)).isoformat(), 'topics': f'Mock: Practice problems for {mock_subject_name}', 'hours': 3},
-             ]
-             # -----------------------------------------
+            logger.error(f"AI Plan generation failed, using mock data: {api_e}")
+            # --- Mock/Placeholder Data for Testing ---
+            if not subjects_data:
+                raise Exception("No subject data available for mock plan.")
+                
+            mock_subject_name = subjects_data[0]['name']
+            plan_data = [
+                {'subject_name': mock_subject_name, 'date': (start_date + timedelta(days=1)).isoformat(), 'topics': f'Mock: Review basics of {mock_subject_name}', 'hours': 2},
+                {'subject_name': mock_subject_name, 'date': (start_date + timedelta(days=2)).isoformat(), 'topics': f'Mock: Practice problems for {mock_subject_name}', 'hours': 3},
+            ]
+            # -----------------------------------------
         
         # Clear old study plans for the user before saving new ones
         StudyPlan.objects.filter(user=user).delete()
@@ -255,8 +373,8 @@ def generate_study_plan_view(request):
                 # Find the subject object by name
                 subject_obj = Subject.objects.get(name__iexact=subject_name) 
             except Subject.DoesNotExist:
-                 logger.warning(f"AI plan generated unknown subject: {subject_name}. Skipping plan entry.")
-                 continue
+                logger.warning(f"AI plan generated unknown subject: {subject_name}. Skipping plan entry.")
+                continue
 
             # SAVING: Create the new StudyPlan object
             StudyPlan.objects.create(
@@ -466,7 +584,6 @@ def timetable_view(request):
     
     return render(request, 'planner/timetable.html', context)
 
-# planner/views.py (Add this new function)
 
 @login_required
 def submit_quiz(request, subject_id):

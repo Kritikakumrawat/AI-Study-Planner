@@ -2,151 +2,153 @@
 {% block title %}Quiz - {{ subject.name }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="mb-0"><i class="fas fa-question-circle me-2"></i>Practice Quiz for {{ subject.name }}</h2>
-  <div>
-    <span class="badge bg-success">AI Generated</span>
-  </div>
+  <h2 class="mb-0"><i class="fas fa-question-circle me-2"></i>Practice Quiz for {{ subject.name }}</h2>
+  <div>
+    <span class="badge bg-success">AI Generated</span>
+  </div>
 </div>
 
 <div class="row">
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Quiz Questions</h5>
-        <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success btn-sm">
-          <i class="fas fa-plus me-2"></i>Generate New Quiz
-        </a>
-        {# NOTE: The link above triggers the quiz generation logic in views.py (replaces old quiz) #}
-      </div>
-      <div class="card-body">
-        {% if quizzes %}
-          <form id="quiz-form" method="post" action="{% url 'submit_quiz' subject.id %}">
-            {% csrf_token %}
-            {% for quiz in quizzes %}
-              <div class="quiz-question mb-4 p-4 border rounded">
-                <h5 class="mb-3">Question {{ forloop.counter }}</h5>
-                <p class="mb-3 fw-medium">{{ quiz.question }}</p>
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Quiz Questions</h5>
+        <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success btn-sm">
+          <i class="fas fa-plus me-2"></i>Generate New Quiz
+        </a>
+        {# NOTE: The link above triggers the quiz generation logic in views.py (replaces old quiz) #}
+      </div>
+      <div class="card-body">
+        {% if quizzes %}
+          <form id="quiz-form" method="post" action="{% url 'submit_quiz' subject.id %}">
+            {% csrf_token %}
+            {% for quiz in quizzes %}
+              <div class="quiz-question mb-4 p-4 border rounded">
+                <h5 class="mb-3">Question {{ forloop.counter }}</h5>
+                <p class="mb-3 fw-medium">{{ quiz.question }}</p>
 
-                <div class="quiz-options">
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_a" value="a" required>
-                    <label class="form-check-label" for="q{{ quiz.id }}_a">
-                      <span class="option-letter">A)</span> {{ quiz.option_a }}
-                    </label>
-                  </div>
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_b" value="b">
-                    <label class="form-check-label" for="q{{ quiz.id }}_b">
-                      <span class="option-letter">B)</span> {{ quiz.option_b }}
-                    </label>
-                  </div>
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_c" value="c">
-                    <label class="form-check-label" for="q{{ quiz.id }}_c">
-                      <span class="option-letter">C)</span> {{ quiz.option_c }} {# FIX: Changed from quiz.option_d to quiz.option_c #}
-                    </label>
-                  </div>
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_d" value="d">
-                    <label class="form-check-label" for="q{{ quiz.id }}_d">
-                      <span class="option-letter">D)</span> {{ quiz.option_d }}
-                    </label>
-                  </div>
-                </div>
-              </div>
-            {% endfor %}
+                <div class="quiz-options">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_a" value="a" required>
+                    <label class="form-check-label" for="q{{ quiz.id }}_a">
+                      <span class="option-letter">A)</span> {{ quiz.option_a }}
+                    </label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_b" value="b">
+                    <label class="form-check-label" for="q{{ quiz.id }}_b">
+                      <span class="option-letter">B)</span> {{ quiz.option_b }}
+                    </label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_c" value="c">
+                    <label class="form-check-label" for="q{{ quiz.id }}_c">
+                      <span class="option-letter">C)</span> {{ quiz.option_c }}
+                    </label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="answer_{{ quiz.id }}" id="q{{ quiz.id }}_d" value="d">
+                    <label class="form-check-label" for="q{{ quiz.id }}_d">
+                      <span class="option-letter">D)</span> {{ quiz.option_d }}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
 
-            <div class="text-center">
-              <button type="submit" class="btn btn-primary btn-lg px-5">
-                <i class="fas fa-check me-2"></i>Submit Quiz
-              </button>
-            </div>
-          </form>
-        {% else %}
-          <div class="text-center py-5">
-            <i class="fas fa-question-circle fa-4x text-muted mb-4"></i>
-            <h5 class="text-muted">No quiz available</h5>
-            <p class="text-muted mb-4">Generate a quiz to test your knowledge of this subject.</p>
-            <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success btn-lg">
-              <i class="fas fa-play me-2"></i>Generate Quiz
-            </a>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
+            <div class="text-center">
+              <button type="submit" class="btn btn-primary btn-lg px-5">
+                <i class="fas fa-check me-2"></i>Submit Quiz
+              </button>
+            </div>
+          </form>
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-question-circle fa-4x text-muted mb-4"></i>
+            <h5 class="text-muted">No quiz available</h5>
+            <p class="text-muted mb-4">Generate a quiz to test your knowledge of this subject.</p>
+            <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success btn-lg">
+              <i class="fas fa-play me-2"></i>Generate Quiz
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 
-  <div class="col-lg-4">
-    <div class="card">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About Quizzes</h5>
-      </div>
-      <div class="card-body">
-        <p class="mb-3">Test your understanding with AI-generated multiple-choice questions based on your study materials.</p>
-        <div class="mb-3">
-          <h6>Features:</h6>
-          <ul class="list-unstyled">
-            <li><i class="fas fa-check text-success me-2"></i>AI-generated questions</li>
-            <li><i class="fas fa-check text-success me-2"></i>Multiple choice format</li>
-            <li><i class="fas fa-check text-success me-2"></i>Instant feedback</li>
-            <li><i class="fas fa-check text-success me-2"></i>Performance tracking</li>
-          </ul>
-        </div>
-        <div class="alert alert-info">
-          <i class="fas fa-lightbulb me-2"></i>
-          <strong>Tip:</strong> Regular quizzing helps reinforce learning and identify weak areas.
-        </div>
-      </div>
-    </div>
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About Quizzes</h5>
+      </div>
+      <div class="card-body">
+        <p class="mb-3">Test your understanding with AI-generated multiple-choice questions based on your study materials.</p>
+        <div class="mb-3">
+          <h6>Features:</h6>
+          <ul class="list-unstyled">
+            <li><i class="fas fa-check text-success me-2"></i>AI-generated questions</li>
+            <li><i class="fas fa-check text-success me-2"></i>Multiple choice format</li>
+            <li><i class="fas fa-check text-success me-2"></i>Instant feedback</li>
+            <li><i class="fas fa-check text-success me-2"></i>Performance tracking</li>
+          </ul>
+        </div>
+        <div class="alert alert-info">
+          <i class="fas fa-lightbulb me-2"></i>
+          <strong>Tip:</strong> Regular quizzing helps reinforce learning and identify weak areas.
+        </div>
+      </div>
+    </div>
 
-    <div class="card mt-3">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Your Progress</h5>
-      </div>
-      <div class="card-body">
-        <div class="text-center">
-          <div class="progress-circle mb-3">
-            <div class="progress-value">75%</div>
-          </div>
-          <p class="text-muted mb-0">Average Score</p>
-        </div>
-        <hr>
-        <div class="stats">
-          <div class="d-flex justify-content-between mb-2">
-            <span>Quizzes Taken:</span>
-            <strong>12</strong>
-          </div>
-          <div class="d-flex justify-content-between mb-2">
-            <span>Best Score:</span>
-                <strong>95%</strong>
-          </div>
-          <div class="d-flex justify-content-between">
-            <span>Average Time:</span>
-            <strong>8 min</strong>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div class="card mt-3">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Your Progress</h5>
+      </div>
+      <div class="card-body">
+        <div class="text-center">
+          <div class="progress-circle mb-3">
+            <div class="progress-value">75%</div>
+          </div>
+          <p class="text-muted mb-0">Average Score</p>
+        </div>
+        <hr>
+        <div class="stats">
+          <div class="d-flex justify-content-between mb-2">
+            <span>Quizzes Taken:</span>
+            <strong>12</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span>Best Score:</span>
+                <strong>95%</strong>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span>Average Time:</span>
+            <strong>8 min</strong>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <div class="card mt-3">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-link me-2"></i>Quick Actions</h5>
-      </div>
-      <div class="card-body">
-        <div class="d-grid gap-2">
-          <a href="{% url 'studyplan' subject.id %}" class="btn btn-outline-primary">
-            <i class="fas fa-calendar-check me-2"></i>View Study Plan
-          </a>
-          <a href="{% url 'notes' subject.id %}" class="btn btn-outline-info">
-            <i class="fas fa-sticky-note me-2"></i>View Notes
-          </a>
-          <a href="/subjects/" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Back to Subjects
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
+    <div class="card mt-3">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-link me-2"></i>Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="{% url 'study_plan_list' subject.id %}" class="btn btn-outline-primary">
+            <i class="fas fa-calendar-check me-2"></i>View Study Plan
+          </a>
+          <a href="{% url 'notes' subject.id %}" class="btn btn-outline-info">
+            <i class="fas fa-sticky-note me-2"></i>View Notes
+          </a>
+          <a href="{% url 'subjects' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Subjects
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>

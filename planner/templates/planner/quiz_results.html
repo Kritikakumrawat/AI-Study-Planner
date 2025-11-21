@@ -1,0 +1,77 @@
+{% extends 'planner/base.html' %}
+{% block title %}Quiz Results - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow border-success">
+            <div class="card-header bg-success text-white text-center">
+                <h3 class="mb-0"><i class="fas fa-trophy me-2"></i>Quiz Results for {{ subject.name }}</h3>
+            </div>
+            <div class="card-body p-4 text-center">
+                
+                {% if percentage >= 70 %}
+                    <i class="fas fa-award fa-5x text-warning mb-4 animate__animated animate__tada"></i>
+                    <h1 class="display-3 text-success fw-bold">{{ percentage }}%</h1>
+                    <p class="lead">🎉 **Excellent job!** You've demonstrated strong knowledge of the subject.</p>
+                {% elif percentage >= 40 %}
+                    <i class="fas fa-chart-line fa-5x text-info mb-4"></i>
+                    <h1 class="display-3 text-info fw-bold">{{ percentage }}%</h1>
+                    <p class="lead">Keep going! You're making progress. Review the topics you missed.</p>
+                {% else %}
+                    <i class="fas fa-redo fa-5x text-danger mb-4"></i>
+                    <h1 class="display-3 text-danger fw-bold">{{ percentage }}%</h1>
+                    <p class="lead">Need a little more study time. Don't worry, try another quiz soon!</p>
+                {% endif %}
+
+                <hr>
+
+                <div class="row text-center mb-4">
+                    <div class="col-6 border-end">
+                        <p class="h5 mb-1 text-muted">Correct Answers</p>
+                        <p class="h1 fw-bold text-success">{{ correct_count }}</p>
+                    </div>
+                    <div class="col-6">
+                        <p class="h5 mb-1 text-muted">Total Questions</p>
+                        <p class="h1 fw-bold text-primary">{{ total_questions }}</p>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                    <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success btn-lg px-4">
+                        <i class="fas fa-redo me-2"></i>Take New Quiz
+                    </a>
+                    <a href="{% url 'study_plan_list' subject.id %}" class="btn btn-outline-primary btn-lg px-4">
+                        <i class="fas fa-calendar-check me-2"></i>Study Plan
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Review Questions & Correct Answers</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for quiz in quizzes %}
+                    <li class="list-group-item">
+                        <p class="fw-bold mb-1">Q{{ forloop.counter }}: {{ quiz.question }}</p>
+                        <p class="text-success mb-1">
+                            <i class="fas fa-check-circle me-1"></i>
+                            **Correct Answer:** {{ quiz.correct_answer }}
+                        </p>
+                        <small class="text-muted">
+                            A: {{ quiz.option_a }}, B: {{ quiz.option_b }}, C: {{ quiz.option_c }}, D: {{ quiz.option_d }}
+                        </small>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

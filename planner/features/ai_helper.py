@@ -1,138 +1,158 @@
-# planner/features/ai_helper.py (Complete Corrected File)
-
-import os
 import json
-import re
-from typing import List, Dict
-import openai
-from django.conf import settings
-from datetime import datetime, timedelta # Ensure timedelta is imported
+from pydantic import BaseModel, Field
+from typing import List
 
-# Set OpenAI API key from settings
-# Using getattr is safer in Django settings context
-openai.api_key = getattr(settings, 'OPENAI_API_KEY', None)
+# --- Define the Models (Note and Subject) ---
 
-# --- Fallback Imports ---
-from . import summarizer # Existing file
-from . import study_planner # Existing file
-# FIXED IMPORT: Must import from the correct file name: ai_helper_mock.py
-from .ai_helper_mock import generate_quiz_questions_mock 
-# --- Fallback Imports ---
+# This defines the data structure for the subject line
+# ai_helper.py (CORRECTED CODE)
+# This defines the data structure for the subject line
+class SubjectLineModel(BaseModel):
+    """Subject line for a note."""
+    subject_line: str = Field(description="A concise, descriptive subject line for the note.")
 
+# This defines the data structure for the main note content
+class Note(BaseModel):
+    """A user note containing subject and content."""
+    subject: str = Field(description="The subject of the note. Should be concise.")
+    content: str = Field(description="The main body or content of the note.")
 
-def _clean_and_load_json(response_content: str) -> List[Dict]:
-    """Helper function to clean non-JSON text (like markdown) and load JSON."""
-    
-    # 1. Strip markdown code fences (```json ... ```)
-    cleaned_content = re.sub(r'```json|```', '', response_content, flags=re.DOTALL).strip()
-    
-    # 2. Attempt to parse JSON
-    try:
-        return json.loads(cleaned_content)
-    except json.JSONDecodeError as e:
-        print(f"JSON Decode Error in LLM response: {e}")
-        return []
+# --- Define the AI Helper Class ---
 
-def external_summarize(text: str, max_tokens: int = 200) -> str:
-    """Summarize text using OpenAI API, falling back to local method on failure."""
-    if not openai.api_key:
-        # Fallback uses the existing summarizer.py file
-        return summarizer.summarize_text(text, max_sentences=7)
-    
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that summarizes educational content."},
-                {"role": "user", "content": f"Summarize the following text in about {max_tokens} tokens:\n\n{text}"}
-            ],
-            max_tokens=max_tokens,
-            temperature=0.5
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"OpenAI API error during summarization: {e}")
-        # Fallback uses the existing summarizer.py file
-        return summarizer.summarize_text(text, max_sentences=7)
-
-def generate_quiz_questions(text: str, num_questions: int = 5) -> List[Dict]:
+class AiHelper:
     """
-    Generate quiz questions using OpenAI API.
-    Returns list of dicts: {"question": str, "options": [str], "answer": str}
+    A class to encapsulate functions that an AI can use, 
+    such as creating notes and generating content (summary, quiz, plan).
     """
-    if not openai.api_key:
-        # Fallback uses the mock file (now correctly imported)
-        return generate_quiz_questions_mock(text, num_questions)
-
-    try:
-        prompt = (f"Generate {num_questions} multiple-choice questions based on the following text. "
-                      f"Format the output strictly as a JSON list of objects. Each object must have keys: "
-                      f"question (str), options (list of 4 strings), and answer (the option letter, e.g., 'A' or 'B').\n\nText:\n{text}")
-        
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are an educational quiz generator. Output only the requested JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
-        
-        quiz_data = _clean_and_load_json(response.choices[0].message.content)
-        
-        # Ensure the final answer is a single letter (A, B, C, D) for Django model consistency
-        for q in quiz_data:
-            if 'answer' in q and isinstance(q['answer'], str):
-                q['answer'] = q['answer'].upper().strip()[:1]
-        
-        return quiz_data
-        
-    except Exception as e:
-        print(f"OpenAI API error during quiz generation: {e}")
-        # Fallback uses the mock file (now correctly imported)
-        return generate_quiz_questions_mock(text, num_questions)
-
-
-def generate_study_plan_ai(subjects: List[Dict], start_date: str, exam_date: str) -> List[Dict]:
-    """
-    Generate study plan using OpenAI API.
-    Returns list of dicts: {"date": str, "subject_name": str, "hours": float, "topics": str}
-    """
-    if not openai.api_key:
-        # Fallback uses the existing study_planner.py file
-        start = datetime.fromisoformat(start_date)
-        exam = datetime.fromisoformat(exam_date)
-        return study_planner.generate_study_plan(subjects, start, exam)
     
-    try:
-        subjects_str = "\n".join([f"- {s['name']} (weightage: {s.get('weightage', 1)})" for s in subjects])
-        prompt = (f"Create a detailed study plan from {start_date} to {exam_date} for the following subjects:\n{subjects_str}\n\n"
-                      f"Provide a daily plan in JSON format: list of objects. Each object must have keys: "
-                      f"date (YYYY-MM-DD), subject_name (the subject's name), hours (float), and topics (brief description of topics to cover).")
+    def __init__(self, notes_storage_file="notes.json"):
+        """Initialize the AiHelper with a storage file."""
+        self.notes_storage_file = notes_storage_file
+        # print(f"AiHelper initialized. Notes will be stored in: {self.notes_storage_file}")
+    
+    # --- CRUD Methods for Notes ---
+
+    def create_note(self, note: Note) -> str:
+        """
+        Creates and stores a new note based on the provided Note object.
+        (This method remains unchanged, using the note data structure)
+        """
+        try:
+            new_note = {
+                "subject": note.subject,
+                "content": note.content
+            }
+            
+            # 1. Load existing notes
+            notes = self._load_notes()
+            
+            # 2. Add the new note
+            notes.append(new_note)
+            
+            # 3. Save all notes
+            self._save_notes(notes)
+            
+            return f"Note successfully created with Subject: '{new_note['subject']}' and Content: '{new_note['content'][:50]}...'"
+            
+        except Exception as e:
+            return f"Error creating note: {str(e)}"
+
+    def _load_notes(self) -> List[dict]:
+        """Loads notes from the JSON storage file."""
+        try:
+            with open(self.notes_storage_file, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return []
+        except json.JSONDecodeError:
+            # print(f"Warning: '{self.notes_storage_file}' is corrupted. Starting with an empty list.")
+            return []
+
+    def _save_notes(self, notes: List[dict]):
+        """Saves the current list of notes to the JSON storage file."""
+        with open(self.notes_storage_file, 'w') as f:
+            json.dump(notes, f, indent=4)
+
+    def get_notes_summary(self) -> str:
+        """Retrieves a summary of all stored notes."""
+        notes = self._load_notes()
+        if not notes:
+            return "No notes currently stored."
+            
+        summary = "Current Notes Summary:\n"
+        for i, note in enumerate(notes, 1):
+            summary += f"{i}. Subject: {note['subject']}\n"
+            
+        return summary
+    
+    # --- AI Generation Methods (Needed by views.py) ---
+    # These are the functions your views.py expects to call via the AiHelper instance.
+
+    def external_summarize(self, text: str) -> str:
+        """
+        Generates a summary/notes from the provided text using an AI service.
+        *** NOTE: You must integrate your actual AI API calls here. ***
+        """
+        # --- PLACEHOLDER LOGIC ---
+        if not text or len(text) < 50:
+            return "Generated Notes: Not enough input text to create a detailed summary."
         
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a study planner assistant. Output only the requested JSON list."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1500,
-            temperature=0.5
-        )
+        summary_text = f"Comprehensive AI-Generated Notes on the provided material:\n\n{text[:200]}...\n\n(Full AI logic integration required here.)"
+        # --- END PLACEHOLDER LOGIC ---
+        return summary_text
+
+    def generate_quiz_questions(self, text: str, num_questions: int = 5) -> List[dict]:
+        """
+        Generates a list of quiz questions from the text using an AI service.
+        *** NOTE: You must integrate your actual AI API calls here. ***
+        """
+        # --- PLACEHOLDER LOGIC (Returns mock data structure) ---
+        if not text:
+            return []
+            
+        return [
+            {'question': 'Mock Q1: What color is the sky?', 'options': ['Red', 'Blue', 'Green', 'Yellow'], 'answer': 'B'},
+            {'question': 'Mock Q2: What is the capital of France?', 'options': ['Berlin', 'Paris', 'Madrid', 'Rome'], 'answer': 'B'},
+            {'question': 'Mock Q3: What is 2 + 2?', 'options': ['3', '4', '5', '6'], 'answer': 'B'},
+            {'question': 'Mock Q4: What is the primary function of Python?', 'options': ['Eating', 'Sleeping', 'Programming', 'Singing'], 'answer': 'C'},
+            {'question': 'Mock Q5: AI Helper created this question. True or False?', 'options': ['True', 'False'], 'answer': 'A'},
+        ]
+        # --- END PLACEHOLDER LOGIC ---
+
+    def generate_study_plan_ai(self, subjects: List[dict], start_date: str, end_date: str) -> List[dict]:
+        """
+        Generates a study plan based on subjects, start date, and end date.
+        *** NOTE: You must integrate your actual AI API calls here. ***
+        """
+        # --- PLACEHOLDER LOGIC (Returns mock data structure) ---
+        if not subjects:
+            return []
         
-        plan_data = _clean_and_load_json(response.choices[0].message.content)
+        mock_subject_name = subjects[0]['name']
         
-        # CRUCIAL: Rename 'subject' key to 'subject_name' for Django view consistency
-        for item in plan_data:
-            if 'subject' in item:
-                item['subject_name'] = item.pop('subject')
-        
-        return plan_data
-        
-    except Exception as e:
-        print(f"OpenAI API error during plan generation: {e}")
-        # Fallback uses the existing study_planner.py file
-        start = datetime.fromisoformat(start_date)
-        exam = datetime.fromisoformat(exam_date)
-        return study_planner.generate_study_plan(subjects, start, exam)
+        # Simple two-day plan for the first subject
+        return [
+            {'subject_name': mock_subject_name, 'date': start_date, 'topics': f'AI Plan: Intro to {mock_subject_name} (2 hours)', 'hours': 2},
+            {'subject_name': mock_subject_name, 'date': end_date, 'topics': f'AI Plan: Review for {mock_subject_name} exam (3 hours)', 'hours': 3},
+        ]
+        # --- END PLACEHOLDER LOGIC ---
+
+# --- Example of How to Use the Class (Optional) ---
+if __name__ == '__main__':
+    helper = AiHelper()
+    
+    # 1. Test Note Creation (Existing logic)
+    sample_note = Note(
+        subject="Test Note",
+        content="This is a test content for note creation."
+    )
+    result = helper.create_note(sample_note)
+    print("\n--- Result of create_note ---")
+    print(result)
+    
+    # 2. Test Summarize
+    test_summary = helper.external_summarize("A long piece of text about something important. This text needs to be summarized by the AI.")
+    print("\n--- Result of external_summarize ---")
+    print(test_summary)
+    
+    # Note: This will create a file named 'notes.json' in the same directory.

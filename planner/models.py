@@ -1,4 +1,4 @@
-# planner/models.py (Complete, Corrected File)
+# planner/models.py (Confirmed Ready)
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -15,7 +15,7 @@ class Subject(models.Model):
     def __str__(self):
         return self.name
 
-# --- 2. USER PROFILE MODEL (CORRECTED) ---
+# --- 2. USER PROFILE MODEL ---
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -42,11 +42,10 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.create(user=instance)
 
 
-# --- 4. OTHER STUDY MODELS (CRITICALLY CORRECTED) ---
+# --- 4. OTHER STUDY MODELS ---
 
 
 class StudyPlan(models.Model):
-    # CRITICAL: This line must exist and is correct
     user = models.ForeignKey(User, on_delete=models.CASCADE) 
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     plan_text = models.TextField()
@@ -56,7 +55,6 @@ class StudyPlan(models.Model):
         return f"Study Plan for {self.subject.name}"
 
 class Exam(models.Model):
-    # Assuming exams are linked to a subject, not directly to a User
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='exams')
     exam_date = models.DateField()
     total_marks = models.IntegerField(default=100)
@@ -67,7 +65,6 @@ class Exam(models.Model):
 
 
 class Notes(models.Model):
-    # --- ADDED MISSING USER FIELD ---
     user = models.ForeignKey(User, on_delete=models.CASCADE) 
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='notes')
     content = models.TextField()
@@ -79,7 +76,6 @@ class Notes(models.Model):
 
 
 class Quiz(models.Model):
-    # --- ADDED MISSING USER FIELD ---
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='quizzes')
     question = models.TextField()
@@ -91,3 +87,17 @@ class Quiz(models.Model):
 
     def __str__(self):
         return f"Quiz: {self.question[:50]}..."
+    
+# --- 5. NEW USER STUDY MATERIAL MODEL ---
+class UserStudyMaterial(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    # This field holds the user's specific syllabus copy or notes material
+    user_file = models.FileField(upload_to='user_materials/%Y/%m/%d/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('user', 'subject')
+
+    def __str__(self):
+        return f"{self.user.username}'s material for {self.subject.name}"

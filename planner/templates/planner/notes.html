@@ -8,6 +8,9 @@
     </div>
 </div>
 
+<input type="hidden" id="download-url-pattern" 
+       data-url="{% url 'download_note' subject.id 99999 %}">
+
 <div class="row">
     <div class="col-lg-8">
         <div class="card">
@@ -20,6 +23,8 @@
                 </div>
             </div>
             <div class="card-body">
+                <div id="message-container"></div>
+                
                 <div id="loading-message" class="alert alert-info" style="display: none;">
                     <i class="fas fa-spinner fa-spin me-2"></i>Generating AI notes, please wait...
                 </div>
@@ -31,15 +36,15 @@
                                 <div class="d-flex justify-content-between align-items-start mb-3">
                                     <h5 class="mb-0">Note {{ forloop.counter }}</h5>
                                     <div class="btn-group" role="group">
-                                        <a href="{% url 'download_note' note.id %}" class="btn btn-outline-secondary btn-sm">
+                                        <a href="{% url 'download_note' subject.id note.id %}" class="btn btn-outline-secondary btn-sm">
                                             <i class="fas fa-download me-1"></i>Download
                                         </a>
                                     </div>
                                 </div>
                                 <div class="note-content">
                                     {% for line in note.content|linebreaksbr %} {% if line.strip %}
-                                            <p class="mb-2">{{ line.strip }}</p>
-                                        {% endif %}
+                                        <p class="mb-2">{{ line.strip }}</p>
+                                    {% endif %}
                                     {% endfor %}
                                 </div>
                                 <div class="note-meta mt-3 pt-3 border-top">
@@ -56,7 +61,7 @@
                         <div class="text-center py-5">
                             <i class="fas fa-sticky-note fa-4x text-muted mb-4"></i>
                             <h5 class="text-muted">No notes generated yet</h5>
-                            <p class="text-muted">Click the "Generate New Notes" button to create AI-powered study notes from your syllabus.</p>
+                            <p class="text-muted">Click the "Generate New Notes" button to create AI-powered study notes from your uploaded material.</p>
                         </div>
                     {% endif %}
                 </div>
@@ -80,9 +85,9 @@
                         <li><i class="fas fa-check text-success me-2"></i>Downloadable format</li>
                     </ul>
                 </div>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Note:</strong> Upload a syllabus PDF in the admin panel for better results.
+                <div class="alert alert-info">
+                    <i class="fas fa-upload me-2"></i>
+                    <strong>Action Required:</strong> Use the **Upload Study Material** button below to provide the AI with your source PDF for best results.
                 </div>
             </div>
         </div>
@@ -93,7 +98,11 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'studyplan' subject.id %}" class="btn btn-outline-primary">
+                    <a href="{% url 'upload_material' subject.id %}" class="btn btn-success">
+                        <i class="fas fa-file-upload me-2"></i>Upload Study Material
+                    </a>
+                    
+                    <a href="{% url 'study_plan_list' subject.id %}" class="btn btn-outline-primary">
                         <i class="fas fa-calendar-check me-2"></i>View Study Plan
                     </a>
                     <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-outline-success">
@@ -112,6 +121,22 @@
 </form>
 
 <script>
+// Custom function to display messages, replacing the forbidden alert()
+function displayMessage(type, message) {
+    const container = document.getElementById('message-container');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    
+    // Check if the container exists and remove any previous messages
+    if (container) {
+        container.innerHTML = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    }
+}
+
 document.getElementById('generate-notes-btn').addEventListener('click', function(e) {
     e.preventDefault();
 
@@ -119,6 +144,9 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
     const loadingMessage = document.getElementById('loading-message');
     const notesContainer = document.getElementById('notes-container');
     const form = document.getElementById('generate-notes-form');
+
+    // Clear previous messages
+    document.getElementById('message-container').innerHTML = '';
 
     // Show loading and disable button
     loadingMessage.style.display = 'block';
@@ -140,21 +168,23 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
     })
     .then(response => {
         if (!response.ok) {
-            // Read response body as text if status is not OK
+            // Read response body as JSON if status is not OK
             return response.json().then(data => {
                 throw new Error(data.message || `HTTP error! Status: ${response.status}`);
             }).catch(() => {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                throw new Error(`HTTP error! Status: ${response.status}. Check server logs.`);
             });
         }
         return response.json();
     })
     .then(data => {
+        // Reset UI state
+        loadingMessage.style.display = 'none';
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-magic me-2"></i>Generate New Notes';
+
         if (data.success) {
-            // Hide loading and re-enable button
-            loadingMessage.style.display = 'none';
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-magic me-2"></i>Generate New Notes';
+            displayMessage('success', `Notes for {{ subject.name }} generated successfully!`);
 
             // Remove empty state if present
             const emptyState = notesContainer.querySelector('.text-center');
@@ -162,9 +192,11 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
                 emptyState.remove();
             }
 
-            // Get the subject ID from the current URL to build the download URL
-            const subjectId = form.action.split('/').slice(-2, -1)[0]; 
-            
+            // FIX 2: Get the correctly rendered base URL and replace the placeholder
+            const urlPatternInput = document.getElementById('download-url-pattern');
+            const baseDownloadUrl = urlPatternInput.getAttribute('data-url');
+            const newDownloadUrl = baseDownloadUrl.replace('99999', data.note.id); 
+
             // Format content into paragraphs
             const formattedContent = data.note.content.split('\n').filter(line => line.trim()).map(line => `<p class="mb-2">${line.trim()}</p>`).join('');
 
@@ -175,7 +207,7 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <h5 class="mb-0">Note ${noteCount}</h5>
                         <div class="btn-group" role="group">
-                            <a href="{% url 'download_note' 0 %}" id="download-link-${data.note.id}" class="btn btn-outline-secondary btn-sm">
+                            <a href="${newDownloadUrl}" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-download me-1"></i>Download
                             </a>
                         </div>
@@ -194,24 +226,19 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
             // Prepend the new note to the container
             notesContainer.insertAdjacentHTML('afterbegin', noteHtml);
             
-            // CRITICAL FIX: Update the hardcoded URL after insertion
-            const downloadLink = document.getElementById(`download-link-${data.note.id}`);
-            if (downloadLink) {
-                downloadLink.href = "{% url 'download_note' 0 %}".replace('/0/', '/' + data.note.id + '/');
-                downloadLink.removeAttribute('id'); // Remove temporary ID
-            }
-            
         } else {
-            // This handles cases where the API returns success: false
+            // This handles cases where the view returns success: false
             throw new Error(data.message || 'Failed to generate notes');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        // Reset UI state
         loadingMessage.style.display = 'none';
         button.disabled = false;
         button.innerHTML = '<i class="fas fa-magic me-2"></i>Generate New Notes';
-        alert('An error occurred while generating notes: ' + error.message);
+
+        // Display the error message to the user using the custom function
+        displayMessage('error', 'An error occurred: ' + error.message);
     });
 });
 </script>

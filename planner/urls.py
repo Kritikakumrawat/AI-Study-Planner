@@ -12,6 +12,10 @@ urlpatterns = [
     path('add_subject/', views.add_subject_view, name='add_subject'),
     path('subjects/<int:subject_id>/', views.study_plan_list, name='study_plan_list'),
     path('subjects/<int:subject_id>/notes/', views.notes, name='notes'),
+    
+    # --- NEW PATH ADDED: This is where users upload their files ---
+    path('subjects/<int:subject_id>/upload_material/', views.upload_study_material, name='upload_material'),
+    
     path('subjects/<int:subject_id>/generate_notes/', views.generate_notes, name='generate_notes'),
     path('subjects/<int:subject_id>/download_note/<int:note_id>/', views.download_note, name='download_note'),
     path('subjects/<int:subject_id>/quiz/', views.generate_quiz, name='generate_quiz'),
