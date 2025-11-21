@@ -15,7 +15,8 @@ openai.api_key = getattr(settings, 'OPENAI_API_KEY', None)
 # --- Fallback Imports ---
 from . import summarizer # Existing file
 from . import study_planner # Existing file
-from .generate_quiz_questions import generate_quiz_questions_mock # New file/function for mock quiz
+# FIXED IMPORT: Must import from the correct file name: ai_helper_mock.py
+from .ai_helper_mock import generate_quiz_questions_mock 
 # --- Fallback Imports ---
 
 
@@ -60,7 +61,7 @@ def generate_quiz_questions(text: str, num_questions: int = 5) -> List[Dict]:
     Returns list of dicts: {"question": str, "options": [str], "answer": str}
     """
     if not openai.api_key:
-        # Fallback uses the new mock file
+        # Fallback uses the mock file (now correctly imported)
         return generate_quiz_questions_mock(text, num_questions)
 
     try:
@@ -89,7 +90,7 @@ def generate_quiz_questions(text: str, num_questions: int = 5) -> List[Dict]:
         
     except Exception as e:
         print(f"OpenAI API error during quiz generation: {e}")
-        # Fallback uses the new mock file
+        # Fallback uses the mock file (now correctly imported)
         return generate_quiz_questions_mock(text, num_questions)
 
 

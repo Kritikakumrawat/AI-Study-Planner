@@ -2,115 +2,113 @@
 {% block title %}Notes - {{ subject.name }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="mb-0"><i class="fas fa-sticky-note me-2"></i>AI Notes for {{ subject.name }}</h2>
-  <div>
-    <span class="badge bg-info">AI Generated</span>
-  </div>
+    <h2 class="mb-0"><i class="fas fa-sticky-note me-2"></i>AI Notes for {{ subject.name }}</h2>
+    <div>
+        <span class="badge bg-info">AI Generated</span>
+    </div>
 </div>
 
 <div class="row">
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Generated Notes</h5>
-        <div class="btn-group" role="group">
-          <button type="button" class="btn btn-primary btn-sm" id="generate-notes-btn">
-            <i class="fas fa-magic me-2"></i>Generate New Notes
-          </button>
-        </div>
-      </div>
-      <div class="card-body">
-        <div id="loading-message" class="alert alert-info" style="display: none;">
-          <i class="fas fa-spinner fa-spin me-2"></i>Generating AI notes, please wait...
-        </div>
-
-        <div id="notes-container">
-          {% if notes %}
-            {% for note in notes %}
-              <div class="note-item mb-4 p-4 bg-light rounded">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                  <h5 class="mb-0">Note {{ forloop.counter }}</h5>
-                  <div class="btn-group" role="group">
-                    <a href="{% url 'download_note' note.id %}" class="btn btn-outline-secondary btn-sm">
-                      <i class="fas fa-download me-1"></i>Download
-                    </a>
-                  </div>
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Generated Notes</h5>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-primary btn-sm" id="generate-notes-btn">
+                        <i class="fas fa-magic me-2"></i>Generate New Notes
+                    </button>
                 </div>
-                <div class="note-content">
-                  {% for line in note.content|linebreaks %}
-                    {% if line.strip %}
-                      <p class="mb-2">{{ line.strip }}</p>
-                    {% endif %}
-                  {% endfor %}
-                </div>
-                <div class="note-meta mt-3 pt-3 border-top">
-                  <small class="text-muted">
-                    <i class="fas fa-calendar me-1"></i>Created: {{ note.created_at|date:"F j, Y \a\t g:i A" }}
-                    {% if note.ai_generated %}
-                      <span class="badge bg-success ms-2">AI Generated</span>
-                    {% endif %}
-                  </small>
-                </div>
-              </div>
-            {% endfor %}
-          {% else %}
-            <div class="text-center py-5">
-              <i class="fas fa-sticky-note fa-4x text-muted mb-4"></i>
-              <h5 class="text-muted">No notes generated yet</h5>
-              <p class="text-muted">Click the "Generate New Notes" button to create AI-powered study notes from your syllabus.</p>
             </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
+            <div class="card-body">
+                <div id="loading-message" class="alert alert-info" style="display: none;">
+                    <i class="fas fa-spinner fa-spin me-2"></i>Generating AI notes, please wait...
+                </div>
 
-  <div class="col-lg-4">
-    <div class="card">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About AI Notes</h5>
-      </div>
-      <div class="card-body">
-        <p class="mb-3">Our AI analyzes your syllabus PDF and generates comprehensive study notes automatically.</p>
-        <div class="mb-3">
-          <h6>Features:</h6>
-          <ul class="list-unstyled">
-            <li><i class="fas fa-check text-success me-2"></i>Extracts key concepts</li>
-            <li><i class="fas fa-check text-success me-2"></i>Summarizes important points</li>
-            <li><i class="fas fa-check text-success me-2"></i>Organizes information logically</li>
-            <li><i class="fas fa-check text-success me-2"></i>Downloadable format</li>
-          </ul>
+                <div id="notes-container">
+                    {% if notes %}
+                        {% for note in notes %}
+                            <div class="note-item mb-4 p-4 bg-light rounded">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="mb-0">Note {{ forloop.counter }}</h5>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'download_note' note.id %}" class="btn btn-outline-secondary btn-sm">
+                                            <i class="fas fa-download me-1"></i>Download
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="note-content">
+                                    {% for line in note.content|linebreaksbr %} {% if line.strip %}
+                                            <p class="mb-2">{{ line.strip }}</p>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <div class="note-meta mt-3 pt-3 border-top">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>Created: {{ note.created_at|date:"F j, Y \a\t g:i A" }}
+                                        {% if note.ai_generated %}
+                                            <span class="badge bg-success ms-2">AI Generated</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-sticky-note fa-4x text-muted mb-4"></i>
+                            <h5 class="text-muted">No notes generated yet</h5>
+                            <p class="text-muted">Click the "Generate New Notes" button to create AI-powered study notes from your syllabus.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <div class="alert alert-warning">
-          <i class="fas fa-exclamation-triangle me-2"></i>
-          <strong>Note:</strong> Upload a syllabus PDF in the admin panel for better results.
-        </div>
-      </div>
     </div>
 
-    <div class="card mt-3">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-link me-2"></i>Quick Actions</h5>
-      </div>
-      <div class="card-body">
-        <div class="d-grid gap-2">
-          <a href="{% url 'studyplan' subject.id %}" class="btn btn-outline-primary">
-            <i class="fas fa-calendar-check me-2"></i>View Study Plan
-          </a>
-          <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-outline-success">
-            <i class="fas fa-question-circle me-2"></i>Take Quiz
-          </a>
-          <a href="/subjects/" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Back to Subjects
-          </a>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About AI Notes</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Our AI analyzes your syllabus PDF and generates comprehensive study notes automatically.</p>
+                <div class="mb-3">
+                    <h6>Features:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>Extracts key concepts</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Summarizes important points</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Organizes information logically</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Downloadable format</li>
+                    </ul>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Note:</strong> Upload a syllabus PDF in the admin panel for better results.
+                </div>
+            </div>
         </div>
-      </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-link me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'studyplan' subject.id %}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar-check me-2"></i>View Study Plan
+                    </a>
+                    <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-outline-success">
+                        <i class="fas fa-question-circle me-2"></i>Take Quiz
+                    </a>
+                    <a href="{% url 'subjects' %}" class="btn btn-outline-secondary"> <i class="fas fa-arrow-left me-2"></i>Back to Subjects
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 
 <form method="post" action="{% url 'generate_notes' subject.id %}" id="generate-notes-form" style="display: none;">
-  {% csrf_token %}
+    {% csrf_token %}
 </form>
 
 <script>
@@ -140,7 +138,17 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
         },
         body: new URLSearchParams(new FormData(form))
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            // Read response body as text if status is not OK
+            return response.json().then(data => {
+                throw new Error(data.message || `HTTP error! Status: ${response.status}`);
+            }).catch(() => {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Hide loading and re-enable button
@@ -154,6 +162,12 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
                 emptyState.remove();
             }
 
+            // Get the subject ID from the current URL to build the download URL
+            const subjectId = form.action.split('/').slice(-2, -1)[0]; 
+            
+            // Format content into paragraphs
+            const formattedContent = data.note.content.split('\n').filter(line => line.trim()).map(line => `<p class="mb-2">${line.trim()}</p>`).join('');
+
             // Add new note
             const noteCount = notesContainer.querySelectorAll('.note-item').length + 1;
             const noteHtml = `
@@ -161,13 +175,13 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <h5 class="mb-0">Note ${noteCount}</h5>
                         <div class="btn-group" role="group">
-                            <a href="/download_note/${data.note.id}/" class="btn btn-outline-secondary btn-sm">
+                            <a href="{% url 'download_note' 0 %}" id="download-link-${data.note.id}" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-download me-1"></i>Download
                             </a>
                         </div>
                     </div>
                     <div class="note-content">
-                        ${data.note.content.split('\n').filter(line => line.trim()).map(line => `<p class="mb-2">${line.trim()}</p>`).join('')}
+                        ${formattedContent}
                     </div>
                     <div class="note-meta mt-3 pt-3 border-top">
                         <small class="text-muted">
@@ -177,8 +191,18 @@ document.getElementById('generate-notes-btn').addEventListener('click', function
                     </div>
                 </div>
             `;
+            // Prepend the new note to the container
             notesContainer.insertAdjacentHTML('afterbegin', noteHtml);
+            
+            // CRITICAL FIX: Update the hardcoded URL after insertion
+            const downloadLink = document.getElementById(`download-link-${data.note.id}`);
+            if (downloadLink) {
+                downloadLink.href = "{% url 'download_note' 0 %}".replace('/0/', '/' + data.note.id + '/');
+                downloadLink.removeAttribute('id'); // Remove temporary ID
+            }
+            
         } else {
+            // This handles cases where the API returns success: false
             throw new Error(data.message || 'Failed to generate notes');
         }
     })
