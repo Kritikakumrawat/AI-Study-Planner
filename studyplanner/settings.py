@@ -67,8 +67,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.media', # Added context processor for media
+                'django.template.context_processors.media',
             ],
+            # ADDED: Explicitly define the path to your custom filters here.
             'libraries': {
                 'custom_filters': 'planner.templatetags.custom_filters',
             },

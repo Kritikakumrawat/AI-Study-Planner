@@ -1,5 +1,5 @@
 {% extends 'planner/base.html' %}
-{% load custom_filters %} {# MUST BE NEAR THE TOP #}
+{% load custom_filters %} 
 {% load static %}
 
 {% block title %}Study Timetable{% endblock %}
@@ -11,6 +11,11 @@
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Study Plan by Date</h5>
+                <div class="mt-2">
+                    <a href="{% url 'study_plan' %}" class="btn btn-light btn-sm">
+                        View Detailed Study Plan
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 {% if plans_exist %}
@@ -73,72 +78,6 @@
                                 <td>{{ task.subject.name }}</td>
                                 <td>{{ task.plan_text|truncatechars:50 }}</td>
                             </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="3" class="text-center text-muted">No generated plans available for review.</td>
-                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                </div>
-                
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-4">
-        <div class="card mb-4">
-            <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Study Progress</h5>
-            </div>
-            <div class="card-body">
-                <div class="text-center mb-3">
-                    <div class="progress-circle">
-                        <div class="progress-value">68%</div>
-                    </div>
-                    <p class="text-muted mb-0">Overall Progress</p>
-                </div>
-                <hr>
-                <div class="stats">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Subjects Selected:</span>
-                        {# Using request.user.userprofile requires Django's default User model with a related UserProfile #}
-                        <strong>{{ request.user.userprofile.selected_subjects.all|length }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Total Tasks Generated:</span>
-                        <strong>{{ plans_list|length }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Avg. Daily Study:</span>
-                        <strong>3.7 hrs (Demo)</strong>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Next Exam:</span>
-                        <strong>Dec 15 (Demo)</strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-success" onclick="markCompleted()">
-                        <i class="fas fa-check me-2"></i>Mark Task Complete
-                    </button>
-                    <button class="btn btn-warning" onclick="reschedule()">
-                        <i class="fas fa-redo me-2"></i>Reschedule
-                    </button>
-                    <a href="{% url 'generate_study_plan' %}" class="btn btn-info">
-                        <i class="fas fa-magic me-2"></i>Generate New Plan
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}

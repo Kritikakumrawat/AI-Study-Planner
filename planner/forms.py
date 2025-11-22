@@ -30,3 +30,14 @@ class UserStudyMaterialForm(forms.ModelForm):
         widgets = {
             'user_file': forms.FileInput(attrs={'accept': '.pdf', 'class': 'form-control'}),
         }
+
+# --- NEW FORM FOR TIMETABLE DATE INPUT ---
+class ExamDateForm(forms.Form):
+    """Form for a student to enter their final exam start date."""
+    
+    exam_start_date = forms.DateField(
+        label='When does your first exam starts?',
+        # 'type': 'date' widget provides a calendar picker
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        input_formats=['%Y-%m-%d']
+    )

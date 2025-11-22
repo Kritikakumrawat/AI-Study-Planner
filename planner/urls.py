@@ -10,7 +10,10 @@ urlpatterns = [
     path('subjects/', views.subject_list, name='subjects'),
     path('select_subjects/', views.subject_selection_view, name='select_subjects'),
     path('add_subject/', views.add_subject_view, name='add_subject'),
-    path('subjects/<int:subject_id>/', views.study_plan_list, name='study_plan_list'),
+    
+    # --- DELETED: Removed path for views.study_plan_list ---
+    # path('subjects/<int:subject_id>/', views.study_plan_list, name='study_plan_list'), 
+    
     path('subjects/<int:subject_id>/notes/', views.notes, name='notes'),
     
     # --- NEW PATH ADDED: This is where users upload their files ---
@@ -21,6 +24,14 @@ urlpatterns = [
     path('subjects/<int:subject_id>/quiz/', views.generate_quiz, name='generate_quiz'),
     path('subjects/<int:subject_id>/quiz/submit/', views.submit_quiz, name='submit_quiz'),
     path('generate_study_plan/', views.generate_study_plan_view, name='generate_study_plan'),
-    path('timetable/', views.timetable_view, name='timetable'),
+    
+    # --- NEW TIMETABLE LOGIC ---
+    # 1. Input the Exam Date
+    path('timetable/set_date/', views.enter_exam_date, name='enter_exam_date'),
+    # 2. Generate and Display Timetable (replaces the old 'timetable' path)
+    path('timetable/generate/', views.generate_timetable, name='generate_timetable'),
+    # FIX: The missing path to views.study_plan_view is REMOVED here to stop the crash.
+    # --- END NEW TIMETABLE LOGIC ---
+    
     path('api/welcome/', views.welcome_api, name='welcome_api'),
 ]
