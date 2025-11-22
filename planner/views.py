@@ -19,7 +19,10 @@ from django.conf import settings # Needed for file upload handling
 # ImportError crash, as UserStudyMaterial is not yet in models.py. 
 # We'll rely on local imports inside the functions for now.
 from .models import UserProfile, Subject, StudyPlan, Notes, Quiz 
-from .forms import SubjectSelectionForm, SubjectCreateForm, UserStudyMaterialForm # NOTE: UserStudyMaterialForm is still imported for use in upload_study_material
+from .forms import SubjectSelectionForm, SubjectCreateForm, UserStudyMaterialForm 
+# *** NEW IMPORT: Need to import the new form for the exam date input ***
+from .forms import ExamDateForm 
+# ----------------------------------------------------------------------
 
 # Assuming these AI feature modules exist in planner/features/
 # We import the AiHelper CLASS and the Pydantic models (Note, Subject)
@@ -391,7 +394,8 @@ def generate_study_plan_view(request):
         messages.error(request, "An error occurred during plan processing.")
 
     # Redirect to the timetable view to see the result
-    return redirect('timetable') 
+    # *** IMPORTANT CHANGE: Redirect to the new date input page ***
+    return redirect('enter_exam_date') 
 
 # Download Notes
 @login_required 
@@ -534,22 +538,66 @@ def add_subject_view(request):
     # This renders the new add_subject.html template
     return render(request, 'planner/add_subject.html', context)
 
-# --- TIMETABLE VIEW (Using the previously fixed logic) ---
+# --- NEW VIEW: DATE INPUT FOR TIMETABLE ---
 @login_required
-def timetable_view(request):
-    """Processes study plans into a date-organized schedule for the timetable view."""
+def enter_exam_date(request):
+    """Allows the student to input the final exam start date."""
     
-    # 1. Fetch all study plans for the user, ordered by creation (closest to current date assumed better)
+    # Check if a study plan already exists and was recently generated
+    # If a study plan exists, we can assume the date has been set or they should regenerate the plan
+    if StudyPlan.objects.filter(user=request.user).exists():
+        messages.info(request, "A study plan already exists. You can proceed to view the timetable, or regenerate the plan to set a new date.")
+        return redirect('generate_timetable')
+        
+    if request.method == 'POST':
+        form = ExamDateForm(request.POST)
+        if form.is_valid():
+            exam_date = form.cleaned_data['exam_start_date']
+            
+            # Store the date in the session. You can also save this to the UserProfile model.
+            request.session['exam_start_date'] = exam_date.isoformat()
+            messages.success(request, "Exam date saved. Generating timetable now...")
+            
+            # Redirect to the timetable generation view
+            return redirect('generate_timetable')
+    else:
+        form = ExamDateForm()
+
+    return render(request, 'planner/exam_date_input.html', {'form': form, 'title': 'Set Exam Date'})
+
+# --- NEW VIEW: TIMETABLE GENERATION AND DISPLAY ---
+@login_required
+def generate_timetable(request):
+    """Processes study plans and displays the final date-organized schedule."""
+    
+    # 1. Get the exam date from the session (set in enter_exam_date view)
+    exam_start_date_str = request.session.get('exam_start_date')
+    
+    # If the date is missing, force the user back to input the date
+    if not exam_start_date_str:
+        messages.warning(request, "Please set your exam date first to generate a customized schedule.")
+        return redirect('enter_exam_date')
+
+    # Convert the stored date string back to a date object
+    try:
+        exam_date = datetime.strptime(exam_start_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        messages.error(request, "Invalid date format found. Please re-enter the date.")
+        return redirect('enter_exam_date')
+    
+    # 2. Fetch all study plans for the user
     plans_list = StudyPlan.objects.filter(user=request.user).order_by('created_at')
     
-    # 2. Structure data for the template's schedule display
+    if not plans_list.exists():
+        messages.info(request, "No study plan found. Please generate one first.")
+        # Optionally redirect the user to generate_study_plan_view
+        return redirect('generate_study_plan')
+    
+    # 3. Structure data for the template's schedule display
     tasks_by_date = defaultdict(list)
     
-    # For demonstration, we'll parse the plan_text to get a date.
-    all_dates_set = set() # Use a set to avoid duplicate dates
-    
+    # We use a date range check based on the exam date
     for plan in plans_list:
-        # Simple heuristic to extract a date from the plan_text
         date_match = None
         try:
             # Expected format: "Date: YYYY-MM-DD | Topics: ..."
@@ -559,30 +607,33 @@ def timetable_view(request):
             # Fallback to the plan creation date if text parsing fails
             date_match = plan.created_at.date()
 
-        date_key = date_match.isoformat()
-        
-        all_dates_set.add(date_key)
-        
-        # Parse task details for the frontend
-        task_details = plan.plan_text.split('|', 1)[-1].strip() if '|' in plan.plan_text else plan.plan_text
-        
-        tasks_by_date[date_key].append({
-            'subject_name': plan.subject.name,
-            'task_details': task_details,
-            'plan_id': plan.id,
-        })
+        # Only include tasks that are before or on the exam date
+        if date_match <= exam_date:
+            date_key = date_match.isoformat()
+            
+            # Parse task details for the frontend
+            task_details = plan.plan_text.split('|', 1)[-1].strip() if '|' in plan.plan_text else plan.plan_text
+            
+            tasks_by_date[date_key].append({
+                'subject_name': plan.subject.name,
+                'task_details': task_details,
+                'plan_id': plan.id,
+            })
 
-    # Sort the unique dates
-    all_dates = sorted(list(all_dates_set))
+    # Sort the unique dates that were collected
+    all_dates = sorted(tasks_by_date.keys())
     
     context = {
         'plans_exist': bool(plans_list),
+        'exam_date': exam_date,
         'all_dates': all_dates,
         'tasks_by_date': dict(tasks_by_date),
-        'plans_list': plans_list, # Used for the Weekly Overview table
+        'plans_list': plans_list, 
+        'title': 'Custom Timetable'
     }
     
-    return render(request, 'planner/timetable.html', context)
+    # NOTE: We use a new template here, or you can point this to your old 'timetable.html'
+    return render(request, 'planner/timetable_output.html', context)
 
 
 @login_required

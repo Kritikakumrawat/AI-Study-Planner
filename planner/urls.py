@@ -21,6 +21,13 @@ urlpatterns = [
     path('subjects/<int:subject_id>/quiz/', views.generate_quiz, name='generate_quiz'),
     path('subjects/<int:subject_id>/quiz/submit/', views.submit_quiz, name='submit_quiz'),
     path('generate_study_plan/', views.generate_study_plan_view, name='generate_study_plan'),
-    path('timetable/', views.timetable_view, name='timetable'),
+    
+    # --- NEW TIMETABLE LOGIC ---
+    # 1. Input the Exam Date
+    path('timetable/set_date/', views.enter_exam_date, name='enter_exam_date'),
+    # 2. Generate and Display Timetable (replaces the old 'timetable' path)
+    path('timetable/generate/', views.generate_timetable, name='generate_timetable'),
+    # --- END NEW TIMETABLE LOGIC ---
+    
     path('api/welcome/', views.welcome_api, name='welcome_api'),
 ]

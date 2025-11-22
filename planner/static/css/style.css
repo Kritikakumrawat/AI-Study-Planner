@@ -302,3 +302,20 @@ footer a {
 footer a:hover {
   color: #007bff !important;
 }
+
+
+.gradient-hero-section {
+    /* Matching the colors from your image: Blue to Purple */
+    background: linear-gradient(90deg, #1e3a8a, #7c3aed);
+    border-radius: 1rem; /* Adjust corner radius as desired */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    color: white; /* Ensure text inside is white */
+    padding: 4rem 2rem; /* Give it some breathing room */
+}
+
+/* For the main heading text to have a slight text shadow for pop */
+.gradient-hero-text {
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    font-size: 3.5rem; /* Ensure it's large and prominent */
+}

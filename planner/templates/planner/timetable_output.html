@@ -1,0 +1,39 @@
+{% extends "planner/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2><i class="fas fa-calendar-alt"></i> Personalized Study Timetable</h2>
+    <p class="lead">Schedule generated up until your exam start date: <strong>{{ exam_date }}</strong>.</p>
+    
+    {% if not all_dates %}
+        <div class="alert alert-warning">
+            No study tasks were generated for the period leading up to your exam. Please ensure you have generated a study plan.
+            <a href="{% url 'generate_study_plan' %}" class="alert-link">Generate Plan Now</a>
+        </div>
+    {% else %}
+        {% for date_str in all_dates %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">{{ date_str }} ({{ tasks_by_date|get_item:date_str|length }} Task{{ tasks_by_date|get_item:date_str|length|pluralize }})</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for task in tasks_by_date|get_item:date_str %}
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong class="text-primary">{{ task.subject_name }}</strong>: {{ task.task_details }}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <a href="{% url 'generate_study_plan' %}" class="btn btn-primary mt-3"><i class="fas fa-redo"></i> Regenerate Study Plan</a>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+{% load custom_filters %} 
+{% endblock extra_js %}

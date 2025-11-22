@@ -1,22 +1,15 @@
-# planner/templatetags/custom_filters.py
 from django import template
 
+# The 'register' variable is mandatory for defining tags and filters
 register = template.Library()
 
+# Define the 'get_item' filter used in your template
+# This allows you to look up an item in a dictionary (like tasks_by_date)
+# using a variable (like date_str) in the template: tasks_by_date|get_item:date_str
 @register.filter
 def get_item(dictionary, key):
-    """Allows accessing a dictionary item by key in Django templates."""
-    if isinstance(dictionary, dict):
-        return dictionary.get(key)
-    return None
-
-@register.filter
-def get_option(quiz, answer_key):
-    """Returns the option text for a given answer key (A, B, C, D)."""
-    options = {
-        'A': quiz.option_a,
-        'B': quiz.option_b,
-        'C': quiz.option_c,
-        'D': quiz.option_d,
-    }
-    return options.get(answer_key.upper(), 'N/A')
+    """
+    Returns the value for a given key from a dictionary.
+    Safe access filter for Python dictionaries in templates.
+    """
+    return dictionary.get(key)
