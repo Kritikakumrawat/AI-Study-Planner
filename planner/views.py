@@ -12,21 +12,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ObjectDoesNotExist 
-from django.conf import settings # Needed for file upload handling
+from django.conf import settings 
 
-# --- PROJECT IMPORTS ---
-# NOTE: The UserStudyMaterial import is commented out here to prevent the initial
-# ImportError crash, as UserStudyMaterial is not yet in models.py. 
-# We'll rely on local imports inside the functions for now.
-from .models import UserProfile, Subject, StudyPlan, Notes, Quiz 
-from .forms import SubjectSelectionForm, SubjectCreateForm, UserStudyMaterialForm 
-# *** NEW IMPORT: Need to import the new form for the exam date input ***
-from .forms import ExamDateForm 
+# --- PROJECT IMPORTS (Ensure these models/forms exist in your app) ---
+from .models import UserProfile, Subject, StudyPlan, Notes, Quiz, UserStudyMaterial 
+from .forms import SubjectSelectionForm, SubjectCreateForm, UserStudyMaterialForm, ExamDateForm 
 # ----------------------------------------------------------------------
 
 # Assuming these AI feature modules exist in planner/features/
-# We import the AiHelper CLASS and the Pydantic models (Note, Subject)
-# CORRECTED LINE in planner/views.py:
 from .features.ai_helper import AiHelper, Note, SubjectLineModel
 from .features.pdf_reader import extract_text_from_pdf
 # ------------------------
@@ -36,9 +29,9 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 logger = logging.getLogger(__name__)
 
-# --- CORRECT INSTANTIATION: Create an instance of the helper class here ---
+# --- AI HELPER INSTANTIATION ---
 ai_helper = AiHelper()
-# --------------------------------------------------------------------------
+# -------------------------------
 
 # Home page
 def home(request):
@@ -70,18 +63,7 @@ def subject_list(request):
         
     return render(request, 'planner/subjects.html', {'subjects': selected_subjects})
 
-# Show study plan and notes for a subject
-@login_required 
-def study_plan_list(request, subject_id):
-    subject = get_object_or_404(Subject, id=subject_id)
-    # Filter by user AND subject
-    studyplans = StudyPlan.objects.filter(user=request.user, subject=subject).order_by('-created_at') 
-    notes = Notes.objects.filter(user=request.user, subject=subject).order_by('-created_at') 
-    return render(request, 'planner/studyplan.html', {
-        'subject': subject,
-        'studyplans': studyplans,
-        'notes': notes,
-    })
+
 
 # Display Notes for a subject
 @login_required 
@@ -97,13 +79,8 @@ def notes(request, subject_id):
     # NEW: Check if the user has uploaded material for this subject
     has_uploaded_material = False
     try:
-        # We need to import the model locally here, as the global import is disabled
-        from .models import UserStudyMaterial
         if UserStudyMaterial.objects.filter(user=request.user, subject=subject).exists():
             has_uploaded_material = True
-    except ImportError:
-        # This catches the case where UserStudyMaterial is not yet defined in models.py
-        logger.warning("UserStudyMaterial model not found. AI features relying on it will fail.")
     except Exception:
         # Catches cases where the database hasn't been migrated yet, etc.
         pass
@@ -116,17 +93,10 @@ def notes(request, subject_id):
         'has_uploaded_material': has_uploaded_material,
     })
 
-# --- NEW VIEW: Handles Study Material Upload (Essential for AI Features) ---
+# --- VIEW: Handles Study Material Upload (Essential for AI Features) ---
 @login_required
 def upload_study_material(request, subject_id):
     """Allows user to upload a file (PDF) to be used for AI notes/quiz generation."""
-    try:
-        # We try to import the necessary model and form here
-        from .models import UserStudyMaterial 
-        from .forms import UserStudyMaterialForm 
-    except ImportError:
-        messages.error(request, "Study Material features are disabled. Please define UserStudyMaterial model and form.")
-        return redirect('subjects')
 
     subject = get_object_or_404(Subject, id=subject_id)
     
@@ -161,18 +131,6 @@ def upload_study_material(request, subject_id):
 def generate_notes(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
     
-    # --- IMPORTANT: Ensure UserStudyMaterial model can be imported before proceeding ---
-    try:
-        from .models import UserStudyMaterial
-    except ImportError:
-        error_message = "UserStudyMaterial model is not defined. Cannot generate notes."
-        logger.error(error_message)
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-             return JsonResponse({'success': False, 'message': error_message})
-        messages.error(request, error_message)
-        return redirect('notes', subject_id=subject_id)
-
-
     if request.method != 'POST':
         return redirect('notes', subject_id=subject_id)
 
@@ -203,18 +161,15 @@ def generate_notes(request, subject_id):
         text = f"Please generate comprehensive study notes for the subject {subject.name} based on its key topics and a general summary of the course."
 
     if not text:
-        # If the fallback text also somehow fails, this prevents an unnecessary API call
         error_message = "Could not process file content. Try uploading a different PDF."
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-             return JsonResponse({'success': False, 'message': error_message})
+            return JsonResponse({'success': False, 'message': error_message})
         messages.error(request, error_message)
         return redirect('notes', subject_id=subject_id)
 
 
     try:
-        # --- FIXED FUNCTION CALL ---
         generated_text = ai_helper.external_summarize(text) 
-        # -------------------------
     except Exception as e:
         error_message = "AI failed to generate notes. Check API connection and try again."
         logger.error(f"AI summarization failed for subject {subject.name} (ID: {subject_id}): {str(e)}")
@@ -253,15 +208,6 @@ def generate_notes(request, subject_id):
 def generate_quiz(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
     
-    # --- IMPORTANT: Ensure UserStudyMaterial model can be imported before proceeding ---
-    try:
-        from .models import UserStudyMaterial
-    except ImportError:
-        error_message = "UserStudyMaterial model is not defined. Cannot generate quiz."
-        logger.error(error_message)
-        messages.error(request, error_message)
-        return redirect('subjects')
-    
     # --- CHECK: Look for user-uploaded material ---
     try:
         user_material = UserStudyMaterial.objects.get(user=request.user, subject=subject)
@@ -281,9 +227,7 @@ def generate_quiz(request, subject_id):
         text = f"Sample quiz content for {subject.name} based on general course topics."
 
     try:
-        # --- FIXED FUNCTION CALL ---
         quiz_data = ai_helper.generate_quiz_questions(text, num_questions=5)
-        # -------------------------
         
         # Clear old quizzes for this user/subject before saving new ones
         Quiz.objects.filter(user=request.user, subject=subject).delete()
@@ -338,7 +282,7 @@ def generate_study_plan_view(request):
         latest_exam = subject.exams.order_by('-exam_date').first() if hasattr(subject, 'exams') else None
         
         if latest_exam and latest_exam.exam_date > exam_date_latest:
-             exam_date_latest = latest_exam.exam_date
+            exam_date_latest = latest_exam.exam_date
         
         subjects_data.append({
             "name": subject.name,
@@ -350,9 +294,7 @@ def generate_study_plan_view(request):
     try:
         # NOTE: Using a robust try/except with a mock fallback for reliable function completion
         try:
-            # --- FIXED FUNCTION CALL ---
             plan_data = ai_helper.generate_study_plan_ai(subjects_data, start_date.isoformat(), exam_date_latest.isoformat())
-            # ---------------------------
         except Exception as api_e:
             logger.error(f"AI Plan generation failed, using mock data: {api_e}")
             # --- Mock/Placeholder Data for Testing ---
@@ -394,7 +336,6 @@ def generate_study_plan_view(request):
         messages.error(request, "An error occurred during plan processing.")
 
     # Redirect to the timetable view to see the result
-    # *** IMPORTANT CHANGE: Redirect to the new date input page ***
     return redirect('enter_exam_date') 
 
 # Download Notes
@@ -544,7 +485,6 @@ def enter_exam_date(request):
     """Allows the student to input the final exam start date."""
     
     # Check if a study plan already exists and was recently generated
-    # If a study plan exists, we can assume the date has been set or they should regenerate the plan
     if StudyPlan.objects.filter(user=request.user).exists():
         messages.info(request, "A study plan already exists. You can proceed to view the timetable, or regenerate the plan to set a new date.")
         return redirect('generate_timetable')
@@ -554,7 +494,7 @@ def enter_exam_date(request):
         if form.is_valid():
             exam_date = form.cleaned_data['exam_start_date']
             
-            # Store the date in the session. You can also save this to the UserProfile model.
+            # Store the date in the session.
             request.session['exam_start_date'] = exam_date.isoformat()
             messages.success(request, "Exam date saved. Generating timetable now...")
             
@@ -591,7 +531,7 @@ def generate_timetable(request):
     if not plans_list.exists():
         messages.info(request, "No study plan found. Please generate one first.")
         # Optionally redirect the user to generate_study_plan_view
-        return redirect('generate_study_plan')
+        return redirect('generate_study_plan_view')
     
     # 3. Structure data for the template's schedule display
     tasks_by_date = defaultdict(list)
@@ -632,7 +572,8 @@ def generate_timetable(request):
         'title': 'Custom Timetable'
     }
     
-    # NOTE: We use a new template here, or you can point this to your old 'timetable.html'
+    # NOTE: You can change 'planner/timetable_output.html' to 'planner/timetable.html' 
+    # if you want to use the template you were fixing earlier.
     return render(request, 'planner/timetable_output.html', context)
 
 

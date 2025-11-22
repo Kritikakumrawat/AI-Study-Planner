@@ -2,153 +2,106 @@
 {% block title %}Study Plan - {{ subject.name }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Study Plan for {{ subject.name }}</h2>
-  <div>
-    <span class="badge bg-primary fs-6">Weightage: {{ subject.weightage }}%</span>
-  </div>
+    <h2 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Study Plan for {{ subject.name }}</h2>
+    <div>
+        <span class="badge bg-primary fs-6">Weightage: {{ subject.weightage }}%</span>
+    </div>
 </div>
 
 <div class="card mb-4">
-  <div class="card-header bg-light">
-    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Exam Information</h5>
-  </div>
-  <div class="card-body">
-    {% if subject.exams.all %}
-      {% for exam in subject.exams.all %}
-        <div class="row">
-          <div class="col-md-6">
-            <p class="mb-1"><strong>Exam Date:</strong> {{ exam.exam_date|date:"F j, Y" }}</p>
-          </div>
-          <div class="col-md-6">
-            <p class="mb-1"><strong>Total Marks:</strong> {{ exam.total_marks }}</p>
-          </div>
-        </div>
-        {% if exam.marks_obtained %}
-          <p class="mb-0"><strong>Marks Obtained:</strong> {{ exam.marks_obtained }}</p>
-        {% endif %}
-      {% endfor %}
-    {% else %}
-      {# FIX: Change hardcoded admin link to user-facing subject list #}
-      <p class="text-muted mb-0">No exam date set. <a href="{% url 'subjects' %}">Manage subjects and exams</a></p>
-    {% endif %}
-  </div>
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Exam Information</h5>
+    </div>
+    <div class="card-body">
+        {% if subject.exams.all %}
+            {% for exam in subject.exams.all %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Exam Date:</strong> {{ exam.exam_date|date:"F j, Y" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Total Marks:</strong> {{ exam.total_marks }}</p>
+                    </div>
+                </div>
+                {% if exam.marks_obtained %}
+                    <p class="mb-0"><strong>Marks Obtained:</strong> {{ exam.marks_obtained }}</p>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            {# FIX: Change hardcoded admin link to user-facing subject list #}
+            <p class="text-muted mb-0">No exam date set. <a href="{% url 'subjects' %}">Manage subjects and exams</a></p>
+        {% endif %}
+    </div>
 </div>
 
 <ul class="nav nav-tabs mb-4" id="studyTabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="plan-tab" data-bs-toggle="tab" data-bs-target="#plan" type="button" role="tab">
-      <i class="fas fa-list-check me-2"></i>Study Plan
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
-      <i class="fas fa-sticky-note me-2"></i>AI Notes
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz" type="button" role="tab">
-      <i class="fas fa-question-circle me-2"></i>Quiz
-    </button>
-  </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
+            <i class="fas fa-sticky-note me-2"></i>AI Notes
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz" type="button" role="tab">
+            <i class="fas fa-question-circle me-2"></i>Quiz
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content" id="studyTabsContent">
-    <div class="tab-pane fade show active" id="plan" role="tabpanel">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Generated Study Plan</h5>
-        
-        {# FIX: Plan Generation button points to the correct URL (no subject.id) #}
-        <form action="{% url 'generate_study_plan' %}" method="get" class="d-inline">
-          <button type="submit" class="btn btn-primary btn-sm">
-            <i class="fas fa-sync-alt me-2"></i>Generate Plan
-          </button>
-        </form>
-      </div>
-      <div class="card-body">
-        {% if studyplans %}
-          <div class="timeline">
-            {% for plan in studyplans %}
-              <div class="timeline-item">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <p class="mb-1">{{ plan.plan_text }}</p>
-                  <small class="text-muted">{{ plan.created_at|date:"M j, Y" }}</small>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="text-center py-4">
-            <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
-            <p class="text-muted">No study plans generated yet.</p>
+    <div class="tab-pane fade show active" id="notes" role="tabpanel">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">AI-Generated Notes</h5>
+                <a href="{% url 'notes' subject.id %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-external-link-alt me-2"></i>View Full Notes
+                </a>
+            </div>
+            <div class="card-body">
+                {% if notes %}
+                    {% for note in notes|slice:":3" %}
+                        <div class="note-preview mb-3 p-3 bg-light rounded">
+                            <p class="mb-2">{{ note.content|truncatechars:200 }}</p>
+                            <small class="text-muted">Created: {{ note.created_at|date:"M j, Y" }}</small>
+                        </div>
+                    {% endfor %}
+                    {% if notes|length > 3 %}
+                        <div class="text-center">
+                            <a href="{% url 'notes' subject.id %}" class="btn btn-outline-secondary">
+                                View All {{ notes|length }} Notes
+                            </a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-sticky-note fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No notes generated yet.</p>
+                        <a href="{% url 'notes' subject.id %}" class="btn btn-primary">
+                            <i class="fas fa-magic me-2"></i>Generate AI Notes
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
-            {# FIX 2: Plan Generation button points to the correct URL (no subject.id) #}
-            <form action="{% url 'generate_study_plan' %}" method="get" class="d-inline">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-magic me-2"></i>Generate AI Study Plan
-              </button>
-            </form>
-          </div>
-        {% endif %}
-        </div>
-      </div>
-  </div>
-
-    <div class="tab-pane fade" id="notes" role="tabpanel">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">AI-Generated Notes</h5>
-        <a href="{% url 'notes' subject.id %}" class="btn btn-outline-primary btn-sm">
-          <i class="fas fa-external-link-alt me-2"></i>View Full Notes
-        </a>
-      </div>
-      <div class="card-body">
-        {% if notes %}
-          {% for note in notes|slice:":3" %}
-            <div class="note-preview mb-3 p-3 bg-light rounded">
-              <p class="mb-2">{{ note.content|truncatechars:200 }}</p>
-              <small class="text-muted">Created: {{ note.created_at|date:"M j, Y" }}</small>
-            </div>
-          {% endfor %}
-          {% if notes|length > 3 %}
-            <div class="text-center">
-              <a href="{% url 'notes' subject.id %}" class="btn btn-outline-secondary">
-                View All {{ notes|length }} Notes
-              </a>
-            </div>
-          {% endif %}
-        {% else %}
-          <div class="text-center py-4">
-            <i class="fas fa-sticky-note fa-3x text-muted mb-3"></i>
-            <p class="text-muted">No notes generated yet.</p>
-            <a href="{% url 'notes' subject.id %}" class="btn btn-primary">
-              <i class="fas fa-magic me-2"></i>Generate AI Notes
-            </a>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-    <div class="tab-pane fade" id="quiz" role="tabpanel">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Practice Quiz</h5>
-        <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success btn-sm">
-          <i class="fas fa-plus me-2"></i>Generate Quiz
-        </a>
-      </div>
-      <div class="card-body">
-        <div class="text-center py-4">
-          <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
-          <p class="text-muted">Take a quiz to test your knowledge.</p>
-          <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success">
-            <i class="fas fa-play me-2"></i>Start Quiz
-          </a>
-        </div>
-        </div>
-    </div>
-  </div>
+    <div class="tab-pane fade" id="quiz" role="tabpanel">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Practice Quiz</h5>
+                <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success btn-sm">
+                    <i class="fas fa-plus me-2"></i>Generate Quiz
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-4">
+                    <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Take a quiz to test your knowledge.</p>
+                    <a href="{% url 'generate_quiz' subject.id %}" class="btn btn-success">
+                        <i class="fas fa-play me-2"></i>Start Quiz
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

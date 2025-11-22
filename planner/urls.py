@@ -10,7 +10,10 @@ urlpatterns = [
     path('subjects/', views.subject_list, name='subjects'),
     path('select_subjects/', views.subject_selection_view, name='select_subjects'),
     path('add_subject/', views.add_subject_view, name='add_subject'),
-    path('subjects/<int:subject_id>/', views.study_plan_list, name='study_plan_list'),
+    
+    # --- DELETED: Removed path for views.study_plan_list ---
+    # path('subjects/<int:subject_id>/', views.study_plan_list, name='study_plan_list'), 
+    
     path('subjects/<int:subject_id>/notes/', views.notes, name='notes'),
     
     # --- NEW PATH ADDED: This is where users upload their files ---
