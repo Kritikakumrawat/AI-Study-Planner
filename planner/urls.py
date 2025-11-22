@@ -30,6 +30,7 @@ urlpatterns = [
     path('timetable/set_date/', views.enter_exam_date, name='enter_exam_date'),
     # 2. Generate and Display Timetable (replaces the old 'timetable' path)
     path('timetable/generate/', views.generate_timetable, name='generate_timetable'),
+    # FIX: The missing path to views.study_plan_view is REMOVED here to stop the crash.
     # --- END NEW TIMETABLE LOGIC ---
     
     path('api/welcome/', views.welcome_api, name='welcome_api'),

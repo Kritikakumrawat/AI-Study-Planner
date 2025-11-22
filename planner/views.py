@@ -29,19 +29,26 @@ from .features.pdf_reader import extract_text_from_pdf
 # ------------------------
 
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
+# --- GEMINI API KEY LOADING: Prioritize GEMINI_API_KEY, fallback to OPENAI_API_KEY
+gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
 
-# --- CRITICAL FIX: Explicitly set the OpenAI API key globally ---
-if api_key:
-    openai.api_key = api_key
+# --- GEMINI COMPATIBILITY SETUP ---
+if gemini_api_key:
+    # 1. Set the API key
+    openai.api_key = gemini_api_key
+    
+    # 2. Set the custom base URL to route requests to the Gemini API endpoint
+    # This is ESSENTIAL for the existing 'openai' library to work with Gemini.
+    openai.base_url = "https://generativelanguage.googleapis.com/v1beta/openai/" 
+    logging.info("Using Gemini API compatibility layer.")
 else:
-    logging.error("OPENAI_API_KEY not found in environment variables!")
+    logging.error("GEMINI_API_KEY or OPENAI_API_KEY (holding Gemini key) not found!")
 # ----------------------------------------------------------------
 
 logger = logging.getLogger(__name__)
 
 # --- AI HELPER INSTANTIATION ---
-# The AiHelper should now be able to use the globally set openai.api_key
+# The AiHelper now uses the Gemini endpoint
 ai_helper = AiHelper()
 # -------------------------------
 
@@ -183,13 +190,20 @@ def generate_notes(request, subject_id):
     try:
         generated_text = ai_helper.external_summarize(text) 
     except Exception as e:
-        error_message = "AI failed to generate notes. Check API connection and try again."
-        logger.error(f"AI summarization failed for subject {subject.name} (ID: {subject_id}): {str(e)}")
+        # --- CRITICAL DEBUGGING CHANGE APPLIED HERE ---
+        error_details = str(e)
+        
+        # Log the full traceback to the console for permanent record
+        logger.error(f"AI summarization failed for subject {subject.name} (ID: {subject_id}): {error_details}")
+
+        # Show the specific, detailed error message in the browser.
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'message': error_message})
+            return JsonResponse({'success': False, 'message': f"CRITICAL API ERROR: {error_details}"})
         else:
-            messages.error(request, error_message)
+            # Regular browser request redirect
+            messages.error(request, f"CRITICAL API ERROR: {error_details}. Please check the key/billing/helper file.")
             return redirect('notes', subject_id=subject_id)
+        # -------------------------------------
 
     # SAVING: Create the new Notes object linked to the user and subject
     note = Notes.objects.create(
@@ -333,15 +347,21 @@ def generate_study_plan_view(request):
         messages.success(request, "Successfully generated a new study plan!")
         
     except Exception as e:
-        logger.error(f"Study plan generation failed for user {user.username}: {str(e)}")
-        # If the API call fails, explicitly show an error message
-        messages.error(request, "AI Study Plan generation failed. Please check your OpenAI API key and service logs.")
-        # If the plan fails, redirect to home or subject selection
+        # --- DEBUGGING CHANGE (KEPT FOR CONSISTENCY) ---
+        error_details = str(e)
+        
+        # Log the full traceback to the console for permanent record
+        logger.error(f"Study plan generation failed for user {user.username}: {error_details}")
+
+        # Show the specific, detailed error message in the browser.
+        messages.error(request, f"CRITICAL API ERROR: {error_details}. Please check your key or billing.")
+        
+        # Redirect the user to see the error message
         return redirect('subjects') 
+        # ---------------------------------------------
 
     # Redirect to the date input, which then redirects to the timetable
     return redirect('enter_exam_date')
-
 
 # Download Notes
 @login_required 
