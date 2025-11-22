@@ -3,42 +3,38 @@ import os
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 
-# --- New Imports for OpenAI Integration ---
-import openai
 from openai import OpenAI
-# ----------------------------------------
+from dotenv import load_dotenv 
+
+# --- Load Environment Variables ---
+load_dotenv()
+# ----------------------------------
 
 # --- Define the Models (Note, Subject, Quiz, and Plan Structures) ---
 
-# This defines the data structure for the subject line
 class SubjectLineModel(BaseModel):
     """Subject line for a note."""
     subject_line: str = Field(description="A concise, descriptive subject line for the note.")
 
-# This defines the data structure for the main note content
 class Note(BaseModel):
     """A user note containing subject and content."""
     subject: str = Field(description="The subject of the note. Should be concise.")
     content: str = Field(description="The main body or content of the note.")
 
-# Model for a single quiz question
 class QuizQuestionModel(BaseModel):
     question: str = Field(description="The quiz question text.")
     options: List[str] = Field(description="A list of 4 possible answers.")
     answer: str = Field(description="The correct answer key (e.g., 'A', 'B', 'C', or 'D').")
 
-# Model for the quiz output list
 class QuizModel(BaseModel):
     questions: List[QuizQuestionModel]
 
-# Model for a single study task
 class StudyTaskModel(BaseModel):
     subject_name: str = Field(description="The name of the subject for this task.")
     date: str = Field(description="The date of the study task in YYYY-MM-DD format.")
     topics: str = Field(description="A brief description of the topics to be covered.")
     hours: int = Field(description="The estimated hours for this task.")
 
-# Model for the study plan output list
 class StudyPlanModel(BaseModel):
     plan: List[StudyTaskModel]
 
@@ -55,18 +51,16 @@ class AiHelper:
         """Initialize the AiHelper and configure the OpenAI client."""
         self.notes_storage_file = notes_storage_file
         
-        # --- FIXED: Client Initialization ---
+        # --- FIXED: Client Initialization (Will now find the key) ---
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY is not set in environment variables.")
         
         self.client = OpenAI(api_key=api_key)
-        self.model = "gpt-3.5-turbo-1106"  # A cost-effective model that supports JSON output
+        self.model = "gpt-3.5-turbo-1106"
         # -----------------------------------
     
-    # --- Utility methods (unchanged CRUD/load/save methods omitted for brevity) ---
-    # Assume _load_notes, _save_notes, create_note, get_notes_summary are here...
-    
+    # --- Utility methods (CRUD/load/save methods) ---
     def _load_notes(self) -> List[dict]:
         try:
             with open(self.notes_storage_file, 'r') as f:
@@ -83,7 +77,7 @@ class AiHelper:
             new_note = {"subject": note.subject, "content": note.content}
             notes = self._load_notes()
             notes.append(new_note)
-            self._save_notes(notes)
+            self._save_notes(notes) # Corrected utility method call
             return f"Note successfully created with Subject: '{new_note['subject']}'..."
         except Exception as e:
             return f"Error creating note: {str(e)}"
@@ -130,7 +124,7 @@ class AiHelper:
                 {"role": "system", "content": f"You are a quiz master. Output a JSON object that strictly adheres to the schema for QuizModel."},
                 {"role": "user", "content": prompt}
             ],
-            response_model=QuizModel, # Use Pydantic model for reliable JSON output
+            response_model=QuizModel,
             temperature=0.5,
         )
         return response.questions
@@ -153,7 +147,7 @@ class AiHelper:
                 {"role": "system", "content": f"You are a study planning expert. Output a JSON object that strictly adheres to the schema for StudyPlanModel."},
                 {"role": "user", "content": prompt}
             ],
-            response_model=StudyPlanModel, # Use Pydantic model for reliable JSON output
+            response_model=StudyPlanModel,
             temperature=0.7,
         )
         return response.plan

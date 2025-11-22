@@ -14,6 +14,10 @@ from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ObjectDoesNotExist 
 from django.conf import settings 
 
+# --- CRITICAL ADDITION: Import the OpenAI library to set the API key globally
+import openai
+# --------------------------------------------------------------------------
+
 # --- PROJECT IMPORTS (Ensure these models/forms exist in your app) ---
 from .models import UserProfile, Subject, StudyPlan, Notes, Quiz, UserStudyMaterial 
 from .forms import SubjectSelectionForm, SubjectCreateForm, UserStudyMaterialForm, ExamDateForm 
@@ -27,9 +31,17 @@ from .features.pdf_reader import extract_text_from_pdf
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
+# --- CRITICAL FIX: Explicitly set the OpenAI API key globally ---
+if api_key:
+    openai.api_key = api_key
+else:
+    logging.error("OPENAI_API_KEY not found in environment variables!")
+# ----------------------------------------------------------------
+
 logger = logging.getLogger(__name__)
 
 # --- AI HELPER INSTANTIATION ---
+# The AiHelper should now be able to use the globally set openai.api_key
 ai_helper = AiHelper()
 # -------------------------------
 
@@ -259,6 +271,7 @@ def generate_quiz(request, subject_id):
 @login_required
 def generate_study_plan_view(request):
     """Generates an AI study plan based on ALL of the user's selected subjects."""
+
     
     user = request.user
     
@@ -292,21 +305,9 @@ def generate_study_plan_view(request):
     start_date = datetime.now().date()
     
     try:
-        # NOTE: Using a robust try/except with a mock fallback for reliable function completion
-        try:
-            plan_data = ai_helper.generate_study_plan_ai(subjects_data, start_date.isoformat(), exam_date_latest.isoformat())
-        except Exception as api_e:
-            logger.error(f"AI Plan generation failed, using mock data: {api_e}")
-            # --- Mock/Placeholder Data for Testing ---
-            if not subjects_data:
-                raise Exception("No subject data available for mock plan.")
-                
-            mock_subject_name = subjects_data[0]['name']
-            plan_data = [
-                {'subject_name': mock_subject_name, 'date': (start_date + timedelta(days=1)).isoformat(), 'topics': f'Mock: Review basics of {mock_subject_name}', 'hours': 2},
-                {'subject_name': mock_subject_name, 'date': (start_date + timedelta(days=2)).isoformat(), 'topics': f'Mock: Practice problems for {mock_subject_name}', 'hours': 3},
-            ]
-            # -----------------------------------------
+        # --- CALL LIVE AI SERVICE ONLY ---
+        plan_data = ai_helper.generate_study_plan_ai(subjects_data, start_date.isoformat(), exam_date_latest.isoformat())
+        # ---------------------------------
         
         # Clear old study plans for the user before saving new ones
         StudyPlan.objects.filter(user=user).delete()
@@ -332,11 +333,15 @@ def generate_study_plan_view(request):
         messages.success(request, "Successfully generated a new study plan!")
         
     except Exception as e:
-        logger.error(f"Study plan final processing failed for user {user.username}: {str(e)}")
-        messages.error(request, "An error occurred during plan processing.")
+        logger.error(f"Study plan generation failed for user {user.username}: {str(e)}")
+        # If the API call fails, explicitly show an error message
+        messages.error(request, "AI Study Plan generation failed. Please check your OpenAI API key and service logs.")
+        # If the plan fails, redirect to home or subject selection
+        return redirect('subjects') 
 
-    # Redirect to the timetable view to see the result
-    return redirect('enter_exam_date') 
+    # Redirect to the date input, which then redirects to the timetable
+    return redirect('enter_exam_date')
+
 
 # Download Notes
 @login_required 
@@ -530,8 +535,8 @@ def generate_timetable(request):
     
     if not plans_list.exists():
         messages.info(request, "No study plan found. Please generate one first.")
-        # Optionally redirect the user to generate_study_plan_view
-        return redirect('generate_study_plan_view')
+        # CORRECTED: Redirect to 'generate_study_plan' which is the correct URL name
+        return redirect('generate_study_plan')
     
     # 3. Structure data for the template's schedule display
     tasks_by_date = defaultdict(list)
@@ -576,7 +581,6 @@ def generate_timetable(request):
     # if you want to use the template you were fixing earlier.
     return render(request, 'planner/timetable_output.html', context)
 
-
 @login_required
 def submit_quiz(request, subject_id):
     """Handles the quiz submission, checks answers against the database, and returns the score."""
@@ -615,7 +619,7 @@ def submit_quiz(request, subject_id):
             'percentage': percentage,
             'quizzes': quizzes # Pass quizzes to show them again if needed
         })
-    
+        
     # If a GET request, just redirect back to the quiz starting page
     return redirect('generate_quiz', subject_id=subject_id)
 
